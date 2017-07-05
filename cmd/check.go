@@ -39,7 +39,7 @@ var checkCmd = &cobra.Command{
 			}
 
 			// Load schema
-			schema, err := validation.NewSwaggerSchemaFromBytes(schemaData, validation.Schema{})
+			schema, err := validation.NewSwaggerSchemaFromBytes(schemaData, nil)
 			if err != nil {
 				return err
 			}
