@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/kubernetes/pkg/api/validation"
 )
@@ -18,22 +19,12 @@ var checkCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		_, disco, err := restClientPool(cmd)
-		if err != nil {
-			return err
-		}
+
 		for _, obj := range objs {
 			groupVersion := obj.GetAPIVersion()
-			prefix := "apis"
-			if groupVersion == "v1" {
-				prefix = "api"
-			}
 
 			// Download schemaData for obj
-			schemaData, err := disco.RESTClient().Get().
-				AbsPath("/swaggerapi", prefix, groupVersion).
-				Do().
-				Raw()
+			schemaData, err := downloadSchema(groupVersion)
 			if err != nil {
 				return err
 			}
@@ -55,6 +46,26 @@ var checkCmd = &cobra.Command{
 			}
 		}
 
+		fmt.Println("The manifest is valid")
 		return nil
 	},
+}
+
+func downloadSchema(groupVersion string) ([]byte, error) {
+	prefix := "apis"
+	if groupVersion == "v1" {
+		prefix = "api"
+	}
+
+	_, disco, err := restClientPool(nil)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	schemaData, err := disco.RESTClient().Get().
+		AbsPath("/swaggerapi", prefix, groupVersion).
+		Do().
+		Raw()
+
+	return schemaData, err
 }
