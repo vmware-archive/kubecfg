@@ -1,0 +1,2 @@
+# This file is used by ronn when generating HTML output
+kubectl(1)  https://kubernetes.io/docs/user-guide/kubectl/
