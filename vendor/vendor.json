@@ -155,6 +155,18 @@
 			"revisionTime": "2016-01-25T20:49:56Z"
 		},
 		{
+			"checksumSHA1": "emvrQDpEPi70+NDIlpll2Pqpj9w=",
+			"path": "github.com/google/go-jsonnet/ast",
+			"revision": "e987361b234be5ce9e760b151d9902c40600aba5",
+			"revisionTime": "2017-08-22T23:28:00Z"
+		},
+		{
+			"checksumSHA1": "XicTSj/B0FwtBQvY8YuQQbTvNYc=",
+			"path": "github.com/google/go-jsonnet/parser",
+			"revision": "e987361b234be5ce9e760b151d9902c40600aba5",
+			"revisionTime": "2017-08-22T23:28:00Z"
+		},
+		{
 			"checksumSHA1": "fgPBEKvm7D7y4IMxGaxHsPmtYtU=",
 			"path": "github.com/google/gofuzz",
 			"revision": "44d81051d367757e1c7c6a5a86423ece9afcf63c",
