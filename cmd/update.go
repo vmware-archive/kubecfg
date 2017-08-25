@@ -49,6 +49,7 @@ const (
 func init() {
 	RootCmd.AddCommand(updateCmd)
 
+	addKubectlFlagsToCmd(updateCmd)
 	addEnvCmdFlags(updateCmd)
 	updateCmd.PersistentFlags().Bool(flagCreate, true, "Create missing resources")
 	updateCmd.PersistentFlags().Bool(flagSkipGc, false, "Don't perform garbage collection, even with --"+flagGcTag)

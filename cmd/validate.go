@@ -26,6 +26,7 @@ import (
 
 func init() {
 	RootCmd.AddCommand(validateCmd)
+	addKubectlFlagsToCmd(validateCmd)
 	addEnvCmdFlags(validateCmd)
 }
 

@@ -36,6 +36,7 @@ const flagDiffStrategy = "diff-strategy"
 var ErrDiffFound = fmt.Errorf("Differences found.")
 
 func init() {
+	addKubectlFlagsToCmd(diffCmd)
 	addEnvCmdFlags(diffCmd)
 	diffCmd.PersistentFlags().String(flagDiffStrategy, "all", "Diff strategy, all or subset.")
 	RootCmd.AddCommand(diffCmd)

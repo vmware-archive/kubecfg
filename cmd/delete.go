@@ -33,6 +33,7 @@ const (
 
 func init() {
 	RootCmd.AddCommand(deleteCmd)
+	addKubectlFlagsToCmd(deleteCmd)
 	addEnvCmdFlags(deleteCmd)
 	deleteCmd.PersistentFlags().Int64(flagGracePeriod, -1, "Number of seconds given to resources to terminate gracefully. A negative value is ignored")
 }
