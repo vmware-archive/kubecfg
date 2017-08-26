@@ -17,32 +17,26 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
+	"github.com/ksonnet/kubecfg/metadata"
+	"github.com/ksonnet/kubecfg/metadata/prototype"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	RootCmd.AddCommand(prototypeCmd)
+	prototypeCmd.AddCommand(prototypeDescribeCmd)
+	prototypeCmd.AddCommand(prototypeSearchCmd)
+	prototypeCmd.AddCommand(prototypeUseCmd)
 }
 
 var prototypeCmd = &cobra.Command{
-	Use:   "prototype <command>",
+	Use:   "prototype",
 	Short: `Instantiate, inspect, and get examples for ksonnet prototypes`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return fmt.Errorf("Invalid number of arguments to command 'prototype'")
-		}
-
-		switch args[0] {
-		case "use":
-			return fmt.Errorf("Command 'prototype use' not implemented yet")
-		case "describe":
-			return fmt.Errorf("Command 'prototype describe' not implemented yet")
-		case "search":
-			return fmt.Errorf("Command 'prototype search' not implemented yet")
-		default:
-			return fmt.Errorf("Unrecognized command 'prototype %s'", args[0])
-		}
+		return fmt.Errorf("prototype requires a command\n\n%s", cmd.UsageString())
 	},
 	Long: `Manage, inspect, instantiate, and get examples for ksonnet prototypes.
 
@@ -85,4 +79,120 @@ Commands:
   # SEE ALSO: Note above for a description of why this subcommand can take
   # 'simple-deployment' instead of the fully-qualified prototype name.
   ksonnet prototype search deployment`,
+}
+
+var prototypeDescribeCmd = &cobra.Command{
+	Use:   "describe",
+	Short: `Describe a ksonnet prototype`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("Invalid number of arguments to command 'prototype describe'")
+		}
+
+		query := args[0]
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		manager, err := metadata.Find(metadata.AbsPath(cwd))
+		if err != nil {
+			return err
+		}
+
+		protos, err := manager.PrototypeSearch(query, prototype.Suffix)
+		if err != nil {
+			return err
+		}
+
+		if len(protos) == 0 {
+			protos, err := manager.PrototypeSearch(query, prototype.Substring)
+			if err != nil {
+				return fmt.Errorf("No prototype names matched '%s'", query)
+			}
+
+			partialMatches := []string{}
+			for _, proto := range protos {
+				partialMatches = append(partialMatches, proto.Name)
+			}
+
+			return fmt.Errorf("No prototype names matched '%s'; a list of partial matches:\n%s", query, strings.Join(partialMatches, "\n"))
+		} else if len(protos) > 1 {
+			names := []string{}
+			for _, proto := range protos {
+				names = append(names, proto.Name)
+			}
+
+			return fmt.Errorf("Ambiguous match for '%s':\n%s", query, strings.Join(names, "\n  "))
+		}
+
+		proto := protos[0]
+
+		fmt.Printf(
+			`PROTOTYPE NAME:
+%s
+
+DESCRIPTION:
+%s
+
+REQUIRED PARAMETERS:
+%s
+
+OPTIONAL PARAMETERS:
+%s
+
+TEMPLATE:
+%s
+`,
+			proto.Name,
+			proto.Template.Description,
+			proto.RequiredParams().PrettyString("  "),
+			proto.OptionalParams().PrettyString("  "),
+			"  "+strings.Join(proto.Template.Body, "\n  "))
+		return nil
+	},
+}
+
+var prototypeSearchCmd = &cobra.Command{
+	Use:   "search",
+	Short: `Search for a ksonnet prototype`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("Invalid number of arguments to command 'prototype search'")
+		}
+
+		query := args[0]
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		manager, err := metadata.Find(metadata.AbsPath(cwd))
+		if err != nil {
+			return err
+		}
+
+		protos, err := manager.PrototypeSearch(query, prototype.Substring)
+		if err != nil {
+			return err
+		}
+
+		for _, proto := range protos {
+			fmt.Println(proto.Name)
+		}
+
+		return nil
+	},
+}
+
+var prototypeUseCmd = &cobra.Command{
+	Use:                "use",
+	Short:              `Instantiate prototype, emitting the generated code to stdout.`,
+	DisableFlagParsing: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println(args)
+		return nil
+	},
 }

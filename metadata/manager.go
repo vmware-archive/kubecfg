@@ -9,6 +9,7 @@ import (
 
 	"github.com/ksonnet/ksonnet-lib/ksonnet-gen/ksonnet"
 	"github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubespec"
+	"github.com/ksonnet/kubecfg/metadata/prototype"
 	"github.com/spf13/afero"
 )
 
@@ -41,6 +42,8 @@ type manager struct {
 	vendorDir      AbsPath
 	schemaDir      AbsPath
 	vendorLibDir   AbsPath
+
+	prototypes prototype.Index
 }
 
 func findManager(abs AbsPath, appFS afero.Fs) (*manager, error) {
@@ -118,6 +121,8 @@ func newManager(rootPath AbsPath, appFS afero.Fs) *manager {
 		vendorDir:      appendToAbsPath(rootPath, vendorDir),
 		schemaDir:      appendToAbsPath(rootPath, schemaDir),
 		vendorLibDir:   appendToAbsPath(rootPath, vendorLibDir),
+
+		prototypes: prototype.NewIndex(defaultPrototypes),
 	}
 }
 
@@ -142,6 +147,10 @@ func (m *manager) ComponentPaths() (AbsPaths, error) {
 	}
 
 	return paths, nil
+}
+
+func (m *manager) PrototypeSearch(query string, opts prototype.SearchOptions) ([]*prototype.Specification, error) {
+	return m.prototypes.SearchNames(query, opts)
 }
 
 func (m *manager) cacheClusterSpecData(name string, specData []byte) error {

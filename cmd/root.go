@@ -60,7 +60,7 @@ const (
 var clientConfig clientcmd.ClientConfig
 
 func init() {
-	addJsonnetFlagsToCmd(RootCmd)
+	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
 }
 
 // RootCmd is the root of all commands that expand Jsonnet code or talk to
@@ -90,7 +90,6 @@ var RootCmd = &cobra.Command{
 }
 
 func addJsonnetFlagsToCmd(cmd *cobra.Command) {
-	cmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
 	cmd.PersistentFlags().StringP(flagJpath, "J", "", "Additional jsonnet library search path")
 	cmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
 	cmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")

@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"github.com/ksonnet/kubecfg/metadata/prototype"
 	"github.com/spf13/afero"
 )
 
@@ -20,6 +21,7 @@ type AbsPaths []string
 type Manager interface {
 	Root() AbsPath
 	ComponentPaths() (AbsPaths, error)
+	PrototypeSearch(query string, opts prototype.SearchOptions) ([]*prototype.Specification, error)
 	//
 	// TODO: Fill in methods as we need them.
 	//

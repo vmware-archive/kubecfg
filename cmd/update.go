@@ -49,6 +49,7 @@ const (
 func init() {
 	RootCmd.AddCommand(updateCmd)
 
+	addJsonnetFlagsToCmd(updateCmd)
 	addKubectlFlagsToCmd(updateCmd)
 	addEnvCmdFlags(updateCmd)
 	updateCmd.PersistentFlags().Bool(flagCreate, true, "Create missing resources")
@@ -58,9 +59,8 @@ func init() {
 }
 
 var updateCmd = &cobra.Command{
-	Use: "update [<env>|-f <file-or-dir>]",
-	Short: `Update (or optionally create) Kubernetes resources on the cluster using the
-local configuration. Accepts JSON, YAML, or Jsonnet.`,
+	Use:   "update [<env>|-f <file-or-dir>]",
+	Short: `Update (or optionally create) Kubernetes resources on the cluster using the local configuration. Accepts JSON, YAML, or Jsonnet.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flags := cmd.Flags()
 		var err error
