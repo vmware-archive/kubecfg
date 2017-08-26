@@ -43,6 +43,22 @@ func (spec *Expander) Expand(paths []string) ([]*unstructured.Unstructured, erro
 	return res, nil
 }
 
+func (spec *Expander) ExpandSnippet(path, snippet string) ([]*unstructured.Unstructured, error) {
+	vm, err := spec.jsonnetVM()
+	if err != nil {
+		return nil, err
+	}
+	defer vm.Destroy()
+
+	res := []*unstructured.Unstructured{}
+	objs, err := utils.ReadSnippet(vm, path, snippet)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading %s: %v", path, err)
+	}
+	res = append(res, utils.FlattenToV1(objs)...)
+	return res, nil
+}
+
 // JsonnetVM constructs a new jsonnet.VM, according to command line
 // flags
 func (spec *Expander) jsonnetVM() (*jsonnet.VM, error) {

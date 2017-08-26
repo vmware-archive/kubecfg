@@ -57,6 +57,11 @@ func Read(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
 	return nil, fmt.Errorf("Unknown file extension: %s", path)
 }
 
+// ReadSnippet fetches and decodes K8s objects by path.
+func ReadSnippet(vm *jsonnet.VM, path, snippet string) ([]runtime.Object, error) {
+	return jsonnetSnippetReader(vm, path, snippet)
+}
+
 func jsonReader(r io.Reader) ([]runtime.Object, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -127,6 +132,41 @@ func jsonWalk(obj interface{}) ([]interface{}, error) {
 
 func jsonnetReader(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
 	jsonstr, err := vm.EvaluateFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("jsonnet result is: %s", jsonstr)
+
+	var top interface{}
+	if err = json.Unmarshal([]byte(jsonstr), &top); err != nil {
+		return nil, err
+	}
+
+	objs, err := jsonWalk(top)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]runtime.Object, 0, len(objs))
+	for _, v := range objs {
+		// TODO: Going to json and back is a bit horrible
+		data, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		obj, _, err := unstructured.UnstructuredJSONScheme.Decode(data, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, obj)
+	}
+
+	return ret, nil
+}
+
+func jsonnetSnippetReader(vm *jsonnet.VM, path, snippet string) ([]runtime.Object, error) {
+	jsonstr, err := vm.EvaluateSnippet(path, snippet)
 	if err != nil {
 		return nil, err
 	}

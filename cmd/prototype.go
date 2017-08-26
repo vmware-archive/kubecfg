@@ -18,10 +18,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/ksonnet/kubecfg/metadata"
 	"github.com/ksonnet/kubecfg/metadata/prototype"
+	"github.com/ksonnet/kubecfg/template"
 	"github.com/spf13/cobra"
 )
 
@@ -101,33 +103,10 @@ var prototypeDescribeCmd = &cobra.Command{
 			return err
 		}
 
-		protos, err := manager.PrototypeSearch(query, prototype.Suffix)
+		proto, err := findUniquePrototype(manager, query)
 		if err != nil {
 			return err
 		}
-
-		if len(protos) == 0 {
-			protos, err := manager.PrototypeSearch(query, prototype.Substring)
-			if err != nil {
-				return fmt.Errorf("No prototype names matched '%s'", query)
-			}
-
-			partialMatches := []string{}
-			for _, proto := range protos {
-				partialMatches = append(partialMatches, proto.Name)
-			}
-
-			return fmt.Errorf("No prototype names matched '%s'; a list of partial matches:\n%s", query, strings.Join(partialMatches, "\n"))
-		} else if len(protos) > 1 {
-			names := []string{}
-			for _, proto := range protos {
-				names = append(names, proto.Name)
-			}
-
-			return fmt.Errorf("Ambiguous match for '%s':\n%s", query, strings.Join(names, "\n  "))
-		}
-
-		proto := protos[0]
 
 		fmt.Printf(
 			`PROTOTYPE NAME:
@@ -188,11 +167,104 @@ var prototypeSearchCmd = &cobra.Command{
 }
 
 var prototypeUseCmd = &cobra.Command{
-	Use:                "use",
+	Use:                "use <prototype-name> [parameter-flags]",
 	Short:              `Instantiate prototype, emitting the generated code to stdout.`,
 	DisableFlagParsing: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(args)
+	RunE: func(cmd *cobra.Command, rawArgs []string) error {
+		if len(rawArgs) < 1 {
+			return fmt.Errorf("Command 'prototype use' requires at least one argument")
+		}
+
+		query := rawArgs[0]
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		manager, err := metadata.Find(metadata.AbsPath(cwd))
+		if err != nil {
+			return err
+		}
+
+		proto, err := findUniquePrototype(manager, query)
+		if err != nil {
+			return err
+		}
+
+		for _, param := range proto.RequiredParams() {
+			cmd.PersistentFlags().String(param.Name, "", param.Description)
+		}
+
+		for _, param := range proto.OptionalParams() {
+			cmd.PersistentFlags().String(param.Name, *param.Default, param.Description)
+		}
+
+		cmd.DisableFlagParsing = false
+		cmd.ParseFlags(rawArgs)
+		flags := cmd.Flags()
+
+		expander := template.Expander{
+			FlagJpath: []string{path.Join(string(manager.Root()), "vendor", "schema", "dev")},
+
+			Resolver:   "noop",
+			FailAction: "warn",
+		}
+
+		for _, param := range proto.RequiredParams() {
+			val, err := flags.GetString(param.Name)
+			if err != nil {
+				return err
+			} else if val == "" {
+				return fmt.Errorf("Failed to instantiate prototype '%s'; parameter '%s' is required", proto.Name, param.Name)
+			}
+			expander.ExtVars = append(expander.ExtVars, fmt.Sprintf("%s=%s", param.Name, val))
+		}
+
+		for _, param := range proto.OptionalParams() {
+			val, err := flags.GetString(param.Name)
+			if err != nil {
+				return err
+			}
+			expander.ExtVars = append(expander.ExtVars, fmt.Sprintf("%s=%s", param.Name, val))
+		}
+
+		snippet, err := expander.ExpandSnippet(proto.Name, strings.Join(proto.Template.Body, "\n"))
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(snippet)
 		return nil
 	},
+}
+
+func findUniquePrototype(manager metadata.Manager, query string) (*prototype.Specification, error) {
+	protos, err := manager.PrototypeSearch(query, prototype.Suffix)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(protos) == 0 {
+		protos, err := manager.PrototypeSearch(query, prototype.Substring)
+		if err != nil {
+			return nil, fmt.Errorf("No prototype names matched '%s'", query)
+		}
+
+		partialMatches := []string{}
+		for _, proto := range protos {
+			partialMatches = append(partialMatches, proto.Name)
+		}
+
+		return nil, fmt.Errorf("No prototype names matched '%s'; a list of partial matches:\n%s", query, strings.Join(partialMatches, "\n"))
+	} else if len(protos) > 1 {
+		names := []string{}
+		for _, proto := range protos {
+			names = append(names, proto.Name)
+		}
+
+		return nil, fmt.Errorf("Ambiguous match for '%s':\n%s", query, strings.Join(names, "\n  "))
+	}
+
+	return protos[0], nil
 }
