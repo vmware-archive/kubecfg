@@ -20,6 +20,11 @@ const (
 	EOF
 )
 
+func (tt TokenType) String() string {
+	s, _ := table2[tt]
+	return s
+}
+
 type Token struct {
 	kind TokenType
 	pos  int
@@ -32,6 +37,18 @@ var table = map[rune]TokenType{
 	'{':  CurlyOpen,
 	'}':  CurlyClose,
 	'\\': Backslash,
+}
+
+var table2 = map[TokenType]string{
+	Dollar:       "Dollar",
+	Colon:        "Colon",
+	CurlyOpen:    "CurlyOpen",
+	CurlyClose:   "CurlyClose",
+	Backslash:    "Backslash",
+	Int:          "Int",
+	VariableName: "VariableName",
+	Format:       "Format",
+	EOF:          "EOF",
 }
 
 type Scanner struct {
@@ -114,11 +131,11 @@ func (s *Scanner) next() *Token {
 	t = Format
 	for pos+len < valueLen {
 		ch = s.value[pos+len]
-		len++
 		_, isStaticToken := table[ch]
 		if isStaticToken || isDigitCharacter(ch) || isVariableCharacter(ch) {
 			break
 		}
+		len++
 	}
 
 	s.pos += len
@@ -130,8 +147,8 @@ func (s *Scanner) next() *Token {
 //
 
 type Marker interface {
-	children() Markers
-	setChildren(markers Markers)
+	children() *Markers
+	setChildren(markers *Markers)
 	parent() Marker
 	setParent(p Marker)
 	String() string
@@ -144,10 +161,14 @@ func (ms *Markers) append(m ...Marker) {
 	*ms = append(*ms, m...)
 }
 
-func (ms Markers) String() string {
+func (ms *Markers) delete(i int) {
+	*ms = append((*ms)[:i], (*ms)[i+1:]...)
+}
+
+func (ms *Markers) String() string {
 	var buf bytes.Buffer
 
-	for _, m := range ms {
+	for _, m := range *ms {
 		buf.WriteString(m.String())
 	}
 	return buf.String()
@@ -155,29 +176,29 @@ func (ms Markers) String() string {
 
 type markerImpl struct {
 	// _markerBrand: any;
-	_children Markers
+	_children *Markers
 	_parent   Marker
 }
 
 func newMarkerImpl() *markerImpl {
-	return newMarkerImplWithChildren(Markers{})
+	return newMarkerImplWithChildren(&Markers{})
 }
 
-func newMarkerImplWithChildren(children Markers) *markerImpl {
+func newMarkerImplWithChildren(children *Markers) *markerImpl {
 	return &markerImpl{
 		_children: children,
 	}
 }
 
-func (mi *markerImpl) children() Markers {
+func (mi *markerImpl) children() *Markers {
 	return mi._children
 }
 
-func (mi *markerImpl) setChildren(markers Markers) {
-	mi._children = Markers{}
-	for _, m := range markers {
+func (mi *markerImpl) setChildren(markers *Markers) {
+	mi._children = &Markers{}
+	for _, m := range *markers {
 		m.setParent(mi)
-		mi._children = append(mi._children, m)
+		mi._children.append(m)
 	}
 }
 
@@ -230,7 +251,7 @@ type Placeholder struct {
 	index int
 }
 
-func newPlaceholder(index int, children Markers) *Placeholder {
+func newPlaceholder(index int, children *Markers) *Placeholder {
 	return &Placeholder{
 		markerImpl: *newMarkerImplWithChildren(children),
 		index:      index,
@@ -270,7 +291,7 @@ type Variable struct {
 	name          string
 }
 
-func newVariable(name string, children Markers) *Variable {
+func newVariable(name string, children *Markers) *Variable {
 	return &Variable{
 		markerImpl: *newMarkerImplWithChildren(children),
 		name:       name,
@@ -295,9 +316,9 @@ func (v *Variable) String() string {
 	return v._children.String()
 }
 
-func walk(markers Markers, visitor func(marker Marker) bool) {
+func walk(markers *Markers, visitor func(marker Marker) bool) {
 	var stack Markers
-	copy(stack, markers)
+	copy(stack, *markers)
 
 	for len(stack) > 0 {
 		// NOTE: Declare `marker` separately so that we can use the `=` operator
@@ -308,7 +329,7 @@ func walk(markers Markers, visitor func(marker Marker) bool) {
 		if !recurse {
 			break
 		}
-		stack = append(marker.children(), stack...)
+		stack = append(*marker.children(), stack...)
 	}
 }
 
@@ -321,7 +342,7 @@ type TextmateSnippet struct {
 	_placeholders *[]*Placeholder
 }
 
-func newTextmateSnippet(children Markers) *TextmateSnippet {
+func newTextmateSnippet(children *Markers) *TextmateSnippet {
 	return &TextmateSnippet{
 		markerImpl:    *newMarkerImplWithChildren(children),
 		_placeholders: nil,
@@ -365,7 +386,7 @@ func (tms *TextmateSnippet) offset(marker Marker) int {
 
 func (tms *TextmateSnippet) fullLen(marker Marker) int {
 	ret := 0
-	walk([]Marker{marker}, func(marker Marker) bool {
+	walk(&Markers{marker}, func(marker Marker) bool {
 		ret += marker.len()
 		return true
 	})
@@ -455,10 +476,10 @@ func (sp *SnippetParser) text(value string) string {
 
 // * fill in default for empty placeHolders
 // * compact sibling Text markers
-func walkDefaults(markers Markers, placeholderDefaultValues map[int]Markers) {
+func walkDefaults(markers *Markers, placeholderDefaultValues map[int]*Markers) {
 
-	for i := 0; i < len(markers); i++ {
-		thisMarker := markers[i]
+	for i := 0; i < len(*markers); i++ {
+		thisMarker := (*markers)[i]
 
 		switch thisMarker.(type) {
 		case *Placeholder:
@@ -470,10 +491,10 @@ func walkDefaults(markers Markers, placeholderDefaultValues map[int]Markers) {
 					placeholderDefaultValues[pl.index] = pl._children
 					walkDefaults(pl._children, placeholderDefaultValues)
 
-				} else if len(pl._children) == 0 {
+				} else if len(*pl._children) == 0 {
 					// copy children from first placeholder definition, no need to
 					// recurse on them because they have been visited already
-					copy(pl._children, defaultVal)
+					copy(*pl._children, *defaultVal)
 				}
 			}
 		case *Variable:
@@ -486,12 +507,12 @@ func walkDefaults(markers Markers, placeholderDefaultValues map[int]Markers) {
 					continue
 				}
 
-				prev := markers[i-1]
+				prev := (*markers)[i-1]
 				switch prev.(type) {
 				case *Text:
 					{
-						markers[i-1].(*Text).data += markers[i].(*Text).data
-						markers = append(markers[:i], markers[i+1:]...)
+						(*markers)[i-1].(*Text).data += (*markers)[i].(*Text).data
+						markers.delete(i)
 						i--
 					}
 				}
@@ -500,27 +521,27 @@ func walkDefaults(markers Markers, placeholderDefaultValues map[int]Markers) {
 	}
 }
 
-func (sp *SnippetParser) parse(value string, insertFinalTabstop bool, enforceFinalTabstop bool) Markers {
+func (sp *SnippetParser) parse(value string, insertFinalTabstop bool, enforceFinalTabstop bool) *Markers {
 	marker := Markers{}
 
 	sp._scanner.text(value)
 	sp._token = sp._scanner.next()
-	for sp._parseAny(marker) || sp._parseText(marker) {
+	for sp._parseAny(&marker) || sp._parseText(&marker) {
 		// nothing
 	}
 
-	placeholderDefaultValues := map[int]Markers{}
-	walkDefaults(marker, placeholderDefaultValues)
+	placeholderDefaultValues := map[int]*Markers{}
+	walkDefaults(&marker, placeholderDefaultValues)
 
 	_, noFinalTabstop := placeholderDefaultValues[0]
 	shouldInsertFinalTabstop := insertFinalTabstop && len(placeholderDefaultValues) > 0 || enforceFinalTabstop
 	if noFinalTabstop && shouldInsertFinalTabstop {
 		// the snippet uses placeholders but has no
 		// final tabstop defined -> insert at the end
-		marker.append(newPlaceholder(0, Markers{}))
+		marker.append(newPlaceholder(0, &Markers{}))
 	}
 
-	return marker
+	return &marker
 }
 
 func (sp *SnippetParser) _accept(kind TokenType) bool {
@@ -538,7 +559,7 @@ func (sp *SnippetParser) _acceptAny() bool {
 	return true
 }
 
-func (sp *SnippetParser) _parseAny(markers Markers) bool {
+func (sp *SnippetParser) _parseAny(markers *Markers) bool {
 	if sp._parseEscaped(markers) {
 		return true
 	} else if sp._parseTM(markers) {
@@ -547,25 +568,25 @@ func (sp *SnippetParser) _parseAny(markers Markers) bool {
 	return false
 }
 
-func (sp *SnippetParser) _parseText(markers Markers) bool {
+func (sp *SnippetParser) _parseText(markers *Markers) bool {
 	if sp._token.kind != EOF {
-		markers = append(markers, newText(sp._scanner.tokenText(sp._token)))
+		markers.append(newText(sp._scanner.tokenText(sp._token)))
 		sp._acceptAny()
 		return true
 	}
 	return false
 }
 
-func (sp *SnippetParser) _parseTM(marker Markers) bool {
+func (sp *SnippetParser) _parseTM(marker *Markers) bool {
 	if sp._accept(Dollar) {
 		if sp._accept(VariableName) || sp._accept(Int) {
 			// $FOO, $123
 			idOrName := sp._scanner.tokenText(sp._prevToken)
 			if matched, err := regexp.MatchString(`^\d+$`, idOrName); matched && err != nil {
 				i, _ := strconv.Atoi(idOrName)
-				marker.append(newPlaceholder(i, Markers{}))
+				marker.append(newPlaceholder(i, &Markers{}))
 			} else {
-				marker.append(newVariable(idOrName, Markers{}))
+				marker.append(newVariable(idOrName, &Markers{}))
 			}
 			return true
 
@@ -585,14 +606,14 @@ func (sp *SnippetParser) _parseTM(marker Markers) bool {
 					idOrName := name.String()
 					if match, err := regexp.MatchString(`^\d+$`, idOrName); match && err != nil {
 						i, _ := strconv.Atoi(idOrName)
-						marker.append(newPlaceholder(i, *children))
+						marker.append(newPlaceholder(i, children))
 					} else {
-						marker.append(newVariable(idOrName, *children))
+						marker.append(newVariable(idOrName, children))
 					}
 					return true
 				}
 
-				if sp._parseAny(*target) || sp._parseText(*target) {
+				if sp._parseAny(target) || sp._parseText(target) {
 					continue
 				}
 
@@ -614,7 +635,7 @@ func (sp *SnippetParser) _parseTM(marker Markers) bool {
 	return false
 }
 
-func (sp *SnippetParser) _parseEscaped(marker Markers) bool {
+func (sp *SnippetParser) _parseEscaped(marker *Markers) bool {
 	if sp._accept(Backslash) {
 		if sp._accept(Dollar) || sp._accept(CurlyClose) || sp._accept(Backslash) {
 			// just consume them
