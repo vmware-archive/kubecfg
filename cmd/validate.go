@@ -36,17 +36,12 @@ var validateCmd = &cobra.Command{
 
 		c := kubecfg.ValidateCmd{}
 
-		files, err := getFiles(cmd, args)
+		c.Environment, c.Files, err = parseEnvCmd(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		vm, err := newExpander(cmd)
-		if err != nil {
-			return err
-		}
-
-		c.Objs, err = vm.Expand(files)
+		c.Expander, err = newExpander(cmd)
 		if err != nil {
 			return err
 		}
@@ -56,7 +51,7 @@ var validateCmd = &cobra.Command{
 			return err
 		}
 
-		return c.Run()
+		return c.Run(cmd.OutOrStdout())
 	},
 	Long: `Validate that an application or file is compliant with the Kubernetes
 specification.

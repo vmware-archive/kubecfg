@@ -42,17 +42,12 @@ var showCmd = &cobra.Command{
 
 		c := kubecfg.ShowCmd{}
 
-		files, err := getFiles(cmd, args)
+		c.Environment, c.Files, err = parseEnvCmd(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		vm, err := newExpander(cmd)
-		if err != nil {
-			return err
-		}
-
-		c.Objs, err = vm.Expand(files)
+		c.Expander, err = newExpander(cmd)
 		if err != nil {
 			return err
 		}

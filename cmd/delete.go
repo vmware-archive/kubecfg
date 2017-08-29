@@ -16,8 +16,11 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
+	"github.com/ksonnet/kubecfg/metadata"
 	"github.com/ksonnet/kubecfg/pkg/kubecfg"
 )
 
@@ -47,17 +50,12 @@ var deleteCmd = &cobra.Command{
 			return err
 		}
 
-		files, err := getFiles(cmd, args)
+		c.Environment, c.Files, err = parseEnvCmd(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		vm, err := newExpander(cmd)
-		if err != nil {
-			return err
-		}
-
-		c.Objs, err = vm.Expand(files)
+		c.Expander, err = newExpander(cmd)
 		if err != nil {
 			return err
 		}
@@ -72,6 +70,11 @@ var deleteCmd = &cobra.Command{
 			return err
 		}
 
-		return c.Run()
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		return c.Run(metadata.AbsPath(cwd))
 	},
 }

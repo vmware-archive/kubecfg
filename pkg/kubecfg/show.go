@@ -1,3 +1,18 @@
+// Copyright 2017 The kubecfg authors
+//
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
 package kubecfg
 
 import (
@@ -6,19 +21,28 @@ import (
 	"io"
 
 	yaml "gopkg.in/yaml.v2"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/ksonnet/kubecfg/template"
 )
 
+// DeleteCmd represents the show subcommand
 type ShowCmd struct {
-	Format string
+	Expander    *template.Expander
+	Environment *string
+	Files       []string
 
-	Objs []*unstructured.Unstructured
+	Format string
 }
 
 func (c ShowCmd) Run(out io.Writer) error {
+	objs, err := c.Expander.Expand(c.Files)
+	if err != nil {
+		return err
+	}
+
 	switch c.Format {
 	case "yaml":
-		for _, obj := range c.Objs {
+		for _, obj := range objs {
 			fmt.Fprintln(out, "---")
 			// Urgh.  Go via json because we need
 			// to trigger the custom scheme
@@ -40,9 +64,9 @@ func (c ShowCmd) Run(out io.Writer) error {
 	case "json":
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
-		for _, obj := range c.Objs {
+		for _, obj := range objs {
 			// TODO: this is not valid framing for JSON
-			if len(c.Objs) > 1 {
+			if len(objs) > 1 {
 				fmt.Fprintln(out, "---")
 			}
 			if err := enc.Encode(obj); err != nil {
