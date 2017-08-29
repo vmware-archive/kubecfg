@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"github.com/ksonnet/kubecfg/pkg/kubecfg"
-	"github.com/ksonnet/kubecfg/template"
 	"github.com/spf13/cobra"
 )
 
@@ -42,14 +41,12 @@ var showCmd = &cobra.Command{
 
 		c := kubecfg.ShowCmd{}
 
-		var files []string
-		files, err = getFiles(cmd, args)
+		files, err := getFiles(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		var vm *template.Expander
-		vm, err = newExpander(cmd)
+		vm, err := newExpander(cmd)
 		if err != nil {
 			return err
 		}
