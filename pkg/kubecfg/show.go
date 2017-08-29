@@ -11,7 +11,8 @@ import (
 
 type ShowCmd struct {
 	Format string
-	Objs   []*unstructured.Unstructured
+
+	Objs []*unstructured.Unstructured
 }
 
 func (c ShowCmd) Run(out io.Writer) error {

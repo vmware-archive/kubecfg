@@ -51,7 +51,7 @@ var validateCmd = &cobra.Command{
 			return err
 		}
 
-		_, c.Disco, err = restClientPool(cmd)
+		_, c.Discovery, err = restClientPool(cmd)
 		if err != nil {
 			return err
 		}
