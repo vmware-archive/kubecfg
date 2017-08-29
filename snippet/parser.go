@@ -140,6 +140,10 @@ type Marker interface {
 
 type Markers []Marker
 
+func (ms *Markers) append(m ...Marker) {
+	*ms = append(*ms, m...)
+}
+
 func (ms Markers) String() string {
 	var buf bytes.Buffer
 
@@ -497,7 +501,7 @@ func walkDefaults(markers Markers, placeholderDefaultValues map[int]Markers) {
 }
 
 func (sp *SnippetParser) parse(value string, insertFinalTabstop bool, enforceFinalTabstop bool) Markers {
-	marker := []Marker{}
+	marker := Markers{}
 
 	sp._scanner.text(value)
 	sp._token = sp._scanner.next()
@@ -513,7 +517,7 @@ func (sp *SnippetParser) parse(value string, insertFinalTabstop bool, enforceFin
 	if noFinalTabstop && shouldInsertFinalTabstop {
 		// the snippet uses placeholders but has no
 		// final tabstop defined -> insert at the end
-		marker = append(marker, newPlaceholder(0, Markers{}))
+		marker.append(newPlaceholder(0, Markers{}))
 	}
 
 	return marker
@@ -559,9 +563,9 @@ func (sp *SnippetParser) _parseTM(marker Markers) bool {
 			idOrName := sp._scanner.tokenText(sp._prevToken)
 			if matched, err := regexp.MatchString(`^\d+$`, idOrName); matched && err != nil {
 				i, _ := strconv.Atoi(idOrName)
-				marker = append(marker, newPlaceholder(i, Markers{}))
+				marker.append(newPlaceholder(i, Markers{}))
 			} else {
-				marker = append(marker, newVariable(idOrName, Markers{}))
+				marker.append(newVariable(idOrName, Markers{}))
 			}
 			return true
 
@@ -581,9 +585,9 @@ func (sp *SnippetParser) _parseTM(marker Markers) bool {
 					idOrName := name.String()
 					if match, err := regexp.MatchString(`^\d+$`, idOrName); match && err != nil {
 						i, _ := strconv.Atoi(idOrName)
-						marker = append(marker, newPlaceholder(i, *children))
+						marker.append(newPlaceholder(i, *children))
 					} else {
-						marker = append(marker, newVariable(idOrName, *children))
+						marker.append(newVariable(idOrName, *children))
 					}
 					return true
 				}
@@ -594,17 +598,17 @@ func (sp *SnippetParser) _parseTM(marker Markers) bool {
 
 				// fallback
 				if len(*children) > 0 {
-					marker = append(marker, newText("${"+name.String()+":"))
-					marker = append(marker, *children...)
+					marker.append(newText("${" + name.String() + ":"))
+					marker.append(*children...)
 				} else {
-					marker = append(marker, newText("${"))
-					marker = append(marker, name...)
+					marker.append(newText("${"))
+					marker.append(name...)
 				}
 				return true
 			}
 		}
 
-		marker = append(marker, newText("$"))
+		marker.append(newText("$"))
 		return true
 	}
 	return false
@@ -615,7 +619,7 @@ func (sp *SnippetParser) _parseEscaped(marker Markers) bool {
 		if sp._accept(Dollar) || sp._accept(CurlyClose) || sp._accept(Backslash) {
 			// just consume them
 		}
-		marker = append(marker, newText(sp._scanner.tokenText(sp._prevToken)))
+		marker.append(newText(sp._scanner.tokenText(sp._prevToken)))
 		return true
 	}
 	return false
