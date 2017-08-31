@@ -19,6 +19,7 @@ GO = go
 EXTRA_GO_FLAGS =
 GO_FLAGS = -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)" $(EXTRA_GO_FLAGS)
 GOFMT = gofmt
+RONN = ronn
 
 KCFG_TEST_FILE = lib/kubecfg_test.jsonnet
 GUESTBOOK_FILE = examples/guestbook.jsonnet
@@ -26,7 +27,7 @@ JSONNET_FILES = $(KCFG_TEST_FILE) $(GUESTBOOK_FILE)
 # TODO: Simplify this once ./... ignores ./vendor
 GO_PACKAGES = ./cmd/... ./utils/... ./pkg/... ./metadata/...
 
-all: kubecfg
+all: kubecfg doc
 
 kubecfg:
 	$(GO) build $(GO_FLAGS) .
@@ -46,8 +47,17 @@ vet:
 fmt:
 	$(GOFMT) -s -w $(shell $(GO) list -f '{{.Dir}}' $(GO_PACKAGES))
 
+%.1: %.1.ronn
+	$(RONN) --roff $<
+
+%.html: %.ronn
+	$(RONN) --html $<
+
+doc: doc/kubecfg.1 doc/kubecfg.1.html
+
 clean:
 	$(RM) ./kubecfg
+	$(RM) doc/kubecfg.1 doc/kubecfg.1.html
 
-.PHONY: all test clean vet fmt
+.PHONY: all test clean vet fmt doc
 .PHONY: kubecfg

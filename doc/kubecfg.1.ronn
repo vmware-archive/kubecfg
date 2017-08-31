@@ -1,0 +1,249 @@
+kubecfg(1) -- Synchronize Kubernetes resources with config files
+================================================================
+
+## SYNOPSIS
+
+`kubecfg` [subcommand] <flags>
+
+## DESCRIPTION
+
+`kubecfg` allows you to express the patterns across your
+infrastructure and reuse these powerful "templates" across many
+services, and then manage those templates as files in version control.
+The more complex your infrastructure is, the more you will gain from
+using `kubecfg`.
+
+## INPUT FILES
+
+Several `kubecfg` subcommands accept a list of files describing
+Kubernetes resources.  `kubecfg` supports JSON, YAML and jsonnet input
+syntax, determined by file suffix.  Kubernetes `v1.List` objects are
+transparently expanded, in the same style as `kubectl`.
+
+Jsonnet is a lambda-expression language, with a JSON-like syntax --
+see <http://jsonnet.org/> for details.  `kubecfg` adds a number of
+additional "native" functions to the jsonnet environment, see
+`lib/kubecfg.libsonnet` shipped with `kubecfg` for documentation.  For
+jsonnet input files, `kubecfg` will evaluate the jsonnet source and
+then look through the resulting structure expecting to find a
+collection of Kubernetes API objects conforming to the usual JSON/YAML
+schema.  Specifically, `kubecfg` will recursively expand lists into
+their elements and key/value objects into their list of values until
+it finds an object with `apiVersion` and `kind`, or it reports an
+error.
+
+## OPTIONS
+
+These "global" options are supported for all subcommands.  See
+[SUBCOMMANDS][] for specific subcommand options.
+
+  * `-h`, `--help`:
+    Print supported subcommands and flags.
+
+  * `-v`, `--verbose`:
+    Increase verbosity.  May be given multiple times.  By default
+    `kubecfg` only displays warnings and errors.  One `-v` displays
+    interesting progress events, two `-v` arguments displays verbose
+    debugging information.
+
+  * `-J`, `--jpath` <PATH>:
+    Add <PATH> to the jsonnet import search path.
+    See also `KUBECFG_JPATH`.
+
+  * `-V`, `--ext-str` <VAR>[=<VAL>]:
+    Specify jsonnet "external" variable <VAR> with value <VAL>.  If
+    <VAL> is omitted, fetch the value from environment variable <VAR>.
+    May be provided multiple times.
+
+  * `--ext-str-file` <VAR>=<FILE>:
+    Specify jsonnet "external" variable <VAR> with value read from
+    <FILE>.
+    May be provided multiple times.
+
+  * `-A`, `--tla-str` <VAR>[=<VAL>]:
+    Specify jsonnet "top-level argument" <VAR> with value <VAL>.  If
+    <VAL> is omitted, fetch the value from environment variable <VAR>.
+    May be provided multiple times.
+
+  * `--tla-str-file` <VAR>=<FILE>:
+    Specify jsonnet "top-level argument" <VAR> with value read from
+    <FILE>.
+    May be provided multiple times.
+
+  * `--resolve-images` <METHOD>:
+    Change implementation of `resolveImage` jsonnet native function.
+
+    Supported values for <METHOD> are:
+
+      * _noop_ (default):
+        Perform only local string canonicalisation of docker image
+        names.  In particular it will replace `foo` with `foo:latest`.
+
+      * _registry_:
+        Lookup docker registry to convert docker `image:tag` with
+        `image@digest`.  Only supports public docker registries at
+        present.
+
+  * `--resolve-images-error` <ACTION>:
+    Action to take when `resolveImage` fails.  Supported values are
+    _ignore_, _warn_ (default), _error_.
+
+In addition, `kubecfg` supports several standard Kubernetes
+`client-go` options, in the same style as `kubectl`.  See kubectl(1)
+documentation.
+
+## SUBCOMMANDS
+
+  * `version`:
+    Print version of `kubecfg` and major libraries.
+
+  * `help` <subcommand>:
+    Print extended help about <subcommand>.
+
+  * `show` [flags] <FILE>...:
+    Show expanded resource definitions.
+    See [INPUT FILES][] for supported FILE values.
+
+    * `-o`, `--format` <FORMAT>:
+      Output format.  Supported values are _json_, _yaml_ (default).
+
+  * `diff` [flags] <FILE>...:
+    Display differences between server and local config.  The output
+    is intended for human consumption.
+
+    * `--diff-strategy` <STRATEGY>:
+      Diff strategy to use.  Supported values are:
+
+      * _all_ (default):
+        Display all attributes on server vs local config.
+
+      * _subset_:
+        Ignore values that exist only on the server.
+
+  * `update` [flags] <FILE>...:
+    Update Kubernetes resources with local config.
+
+    * `--create`:
+      Create missing resources (defaults to true)
+
+    * `--dry-run`:
+      Perform only read-only operations.  Skipping an operation may
+      affect later operations and is only a best-effort attempt at
+      illustrating what would happen _without_ `--dry-run`.
+
+    * `--gc-tag` <TAG>:
+      Set the garbage collection annotation to <TAG> on all
+      created/updated objects, and garbage collect existing objects
+      with <TAG> annotation not in local config.
+      See [GARBAGE COLLECTION][].
+
+    * `--skip-gc`:
+      Do not perform the garbage collection step, even with `--gc-tag`.
+      This can be useful (with `--gc-tag`) to skip the time-consuming
+      GC step for situations where garbage collection is _known_ to be
+      unnecessary or can be delayed.
+
+  * `delete` [flags] <FILE>...:
+    Delete Kubernetes resources described in local config.  The
+    intention is that `delete` will remove all the objects that an
+    `update` would create from the same <FILE>.
+    Note that as currently implemented, `delete` does *not* also
+    perform garbage collection.
+
+    * `--grace-period` <SECS>:
+      Number of seconds allowed for resources to terminate gracefully,
+      overriding the per-resource configuration and defaults.  A
+      negative value is ignored.
+
+## GARBAGE COLLECTION
+
+`kubecfg` can optionally _garbage collect_ server objects that were
+created from a previous `kubecfg update` but no longer appear in local
+configuration.  The garbage collection feature is disabled by default.
+To use this feature, just specify the same `--gc-tag` value on
+subsequent `update` invocations from the same set of input config
+files.
+
+When `--gc-tag` is specified, `kubecfg` will add the tag value as an
+annotation to all updated (or created) objects.  Following the update
+`kubecfg` will (unless `--skip-gc` is given) attempt to list all
+objects known to the server, and look for this tag annotation.  Any
+object that satisfies the following criteria **will be deleted**:
+
+  * exists on the server with the same tag value as given by
+    `--gc-tag`, _and_
+  * was not part of the update just performed, _and_
+  * does not have a "controller ref".
+
+Migrating *to* garbage collection is easy, just start specifying
+`--gc-tag` on future `kubecfg update` invocations.  Any run that fails
+to specify `--gc-tag` will potentially create an object that will not
+be seen by future garbage collection attempts, but is otherwise safe.
+
+If you no longer want to use this feature, just stop specifying
+`--gc-tag`.
+
+Changing `--gc-tag` to a new value is safe, although any existing
+stale objects with the previous value might no longer be found by
+garbage collection.  It is recommended to perform a final `update`
+with the old `--gc-tag` and then immediately running `update` again
+with the new `--gc-tag` and the same configuration files to ensure no
+objects are lost.
+
+More than one "config pipeline" can use garbage collection on the same
+cluster by specifying unique `--gc-tag` values.  Specifying the *same*
+`--gc-tag` value as someone using *different* config files or only *a
+subset* of the same config files **will result in objects being
+deleted erroneously.**  It is recommended that the `--gc-tag` flag and
+related set of input files are captured in a wrapper script or other
+automated process for consistency between invocations.
+
+`kubecfg` itself does not perform any locking against simultaneous
+`update` runs, which may result in garbage collection races.  Again,
+it is recommended that this is handled in a wrapper script or
+automated process if this is a concern for your environment.
+
+## EXAMPLES
+
+Create a temporary demo, show it off, then delete it again:
+
+    $ git checkout https://gitrepo/my/fancy/demo
+    $ kubecfg update
+    # enjoy service running in Kubernetes
+    $ kubecfg delete
+
+As the key step in an automated pipeline (eg: jenkins), after a commit
+is merged to git master:
+
+    $ export KUBECFG_JPATH=/path/to/common/jsonnet/libs
+    $ git pull --ff-only
+    $ kubecfg update --gc-tag mypipeline *.jsonnet
+
+## ENVIRONMENT
+
+  * `KUBECFG_JPATH`:
+    Colon-separated (or semicolon-separated on Windows) list of
+    directories to add to the jsonnet import search path, similar to
+    `--jpath`.
+
+## AUTHOR
+
+Angus Lees <<gus@bitnami.com>> and others.
+
+## COPYRIGHT
+
+Licensed under the Apache License, Version 2.0 (the "License"); you
+may not use this file except in compliance with the License.  You may
+obtain a copy of the License at
+
+<http://www.apache.org/licenses/LICENSE-2.0>
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied.  See the License for the specific language governing
+permissions and limitations under the License.
+
+## SEE ALSO
+
+kubectl(1), <https://kubernetes.io/>, <http://jsonnet.org/>
