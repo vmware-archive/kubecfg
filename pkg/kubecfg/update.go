@@ -50,17 +50,17 @@ type UpdateCmd struct {
 	DryRun bool
 }
 
-func (c UpdateCmd) Run(objs []*unstructured.Unstructured) error {
+func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 	dryRunText := ""
 	if c.DryRun {
 		dryRunText = " (dry-run)"
 	}
 
-	sort.Sort(utils.DependencyOrder(objs))
+	sort.Sort(utils.DependencyOrder(apiObjects))
 
 	seenUids := sets.NewString()
 
-	for _, obj := range objs {
+	for _, obj := range apiObjects {
 		if c.GcTag != "" {
 			utils.SetMetaDataAnnotation(obj, AnnotationGcTag, c.GcTag)
 		}
