@@ -13,8 +13,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-VERSION = dev-$(shell date +%FT%T%z)
+VERSION ?= dev-$(shell date +%FT%T%z)
 
+# Go variables.
 GO = go
 EXTRA_GO_FLAGS =
 GO_FLAGS = -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)" $(EXTRA_GO_FLAGS)
@@ -22,6 +23,15 @@ GOFMT = gofmt
 # GINKGO = "go test" also works if you want to avoid ginkgo tool
 GINKGO = ginkgo
 
+# Docker variables.
+DOCKER ?= docker
+ORGANIZATION = ksonnet
+TARGET = ksonnet
+PWD = $(shell pwd)
+# Date is not compatible with Docker's -t flag, so we use this instead.
+IMAGE_VERSION ?= git-$(shell git describe --tags --always)
+
+# Ksonnet variables.
 KCFG_TEST_FILE = lib/kubecfg_test.jsonnet
 GUESTBOOK_FILE = examples/guestbook.jsonnet
 JSONNET_FILES = $(KCFG_TEST_FILE) $(GUESTBOOK_FILE)
@@ -29,7 +39,8 @@ JSONNET_FILES = $(KCFG_TEST_FILE) $(GUESTBOOK_FILE)
 GO_PACKAGES = ./cmd/... ./utils/... ./pkg/... ./metadata/... ./prototype/...
 
 # Default cluster from this config is used for integration tests
-KUBECONFIG = $(HOME)/.kube/config
+KUBEDIR ?= $(HOME)/.kube
+KUBECONFIG ?= $(KUBEDIR)/config
 
 all: kubecfg
 
@@ -54,8 +65,24 @@ vet:
 fmt:
 	$(GOFMT) -s -w $(shell $(GO) list -f '{{.Dir}}' $(GO_PACKAGES))
 
+container:
+	$(DOCKER) build . --no-cache -t $(ORGANIZATION)/$(TARGET):latest -t $(ORGANIZATION)/$(TARGET):$(IMAGE_VERSION)
+
+# For example: `make ARGS=help run-container` invokes the help subcommand.
+run-container: container
+	$(DOCKER) run -ti --rm                           \
+	  --volume "$(PWD)":/wd                          \
+	  --volume "$(KUBEDIR)/":/root/.kube             \
+	  --workdir /wd $(ORGANIZATION)/$(TARGET):latest \
+	  kubecfg $(ARGS)
+
+push:
+	$(DOCKER) push $(ORGANIZATION)/$(TARGET):$(IMAGE_VERSION)
+
 clean:
 	$(RM) ./kubecfg
+	$(DOCKER) rmi -f $(ORGANIZATION)/$(TARGET):latest
+	$(DOCKER) rmi -f $(ORGANIZATION)/$(TARGET):$(IMAGE_VERSION)
 
 .PHONY: all test clean vet fmt
 .PHONY: kubecfg

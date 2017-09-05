@@ -115,6 +115,7 @@ script:
        minikube status
        make VERSION="$VERSION" EXTRA_GO_FLAGS="$EXTRA_GO_FLAGS_TEST" integrationtest
     fi
+  - make ARGS=help run-container
 
 after_script: set +e
 
