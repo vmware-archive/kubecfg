@@ -65,4 +65,14 @@
   // to refer to submatches.  Regex is as implemented in golang regexp
   // package (python-ish).
   regexSubst:: std.native("regexSubst"),
+
+  // kubernetesVersion(): Return [major, minor] representing the
+  // Kubernetes server version.
+  kubernetesVersion:: std.native("kubernetesVersion"),
+
+  // kubernetesGroupVersionSupported(gv): Return true iff the
+  // Kubernetes server advertises support for the specified API
+  // "group/version" (eg: "storage.k8s.io/v1beta1").  Legacy core is
+  // "v1" (and hopefully always supported).
+  kubernetesGroupVersionSupported:: std.native("kubernetesGroupVersionSupported"),
 }

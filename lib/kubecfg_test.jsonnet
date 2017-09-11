@@ -65,6 +65,9 @@ assert r == "f\\[o" : "got " + r;
 local r = kubecfg.regexSubst("e", "tree", "oll");
 assert r == "trolloll" : "got " + r;
 
+// NB: kubernetes* functions are tested via integration tests, since
+// they require access to a k8s server.
+
 // Kubecfg wants to see something that looks like a k8s object
 {
   apiVersion: "test",

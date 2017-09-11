@@ -19,6 +19,9 @@ import (
 	"testing"
 
 	jsonnet "github.com/strickyak/jsonnet_cgo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	fakedisco "k8s.io/client-go/discovery/fake"
+	ktesting "k8s.io/client-go/testing"
 )
 
 // check there is no err, and a == b.
@@ -30,10 +33,29 @@ func check(t *testing.T, err error, actual, expected string) {
 	}
 }
 
+func registerNativeFuncs(vm *jsonnet.VM) {
+	fake := &ktesting.Fake{
+		Resources: []*metav1.APIResourceList{
+			{
+				GroupVersion: "tests/v1alpha1",
+				APIResources: []metav1.APIResource{
+					{
+						Name: "tests",
+						Kind: "Test",
+					},
+				},
+			},
+		},
+	}
+	disco := &fakedisco.FakeDiscovery{Fake: fake}
+
+	RegisterNativeFuncs(vm, NewIdentityResolver(), disco)
+}
+
 func TestParseJson(t *testing.T) {
 	vm := jsonnet.Make()
 	defer vm.Destroy()
-	RegisterNativeFuncs(vm, NewIdentityResolver())
+	registerNativeFuncs(vm)
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("parseJson")("barf{")`)
 	if err == nil {
@@ -52,7 +74,7 @@ func TestParseJson(t *testing.T) {
 func TestParseYaml(t *testing.T) {
 	vm := jsonnet.Make()
 	defer vm.Destroy()
-	RegisterNativeFuncs(vm, NewIdentityResolver())
+	registerNativeFuncs(vm)
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("parseYaml")("[barf")`)
 	if err == nil {
@@ -76,7 +98,7 @@ func TestParseYaml(t *testing.T) {
 func TestRegexMatch(t *testing.T) {
 	vm := jsonnet.Make()
 	defer vm.Destroy()
-	RegisterNativeFuncs(vm, NewIdentityResolver())
+	registerNativeFuncs(vm)
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("regexMatch")("[f", "foo")`)
 	if err == nil {
@@ -93,7 +115,7 @@ func TestRegexMatch(t *testing.T) {
 func TestRegexSubst(t *testing.T) {
 	vm := jsonnet.Make()
 	defer vm.Destroy()
-	RegisterNativeFuncs(vm, NewIdentityResolver())
+	registerNativeFuncs(vm)
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("regexSubst")("[f",s "foo", "bar")`)
 	if err == nil {

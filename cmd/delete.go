@@ -54,7 +54,7 @@ var deleteCmd = &cobra.Command{
 			return err
 		}
 
-		objs, err := readObjs(cmd, args)
+		objs, err := readObjs(cmd, args, c.Discovery)
 		if err != nil {
 			return err
 		}
