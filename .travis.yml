@@ -56,6 +56,7 @@ addons:
       - libgmp-dev
       - libmpfr-dev
       - libmpc-dev
+      - realpath
 
 before_install:
   - set -e
