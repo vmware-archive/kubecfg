@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "deltas.go",
+        "gojsondiff.go",
+        "unmarshaler.go",
+    ],
+    importpath = "github.com/yudai/gojsondiff",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/sergi/go-diff/diffmatchpatch:go_default_library",
+        "//vendor/github.com/yudai/golcs:go_default_library",
+    ],
+)

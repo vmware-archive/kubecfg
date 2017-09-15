@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["snippet.go"],
+    importpath = "github.com/ksonnet/kubecfg/prototype/snippet/jsonnet",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//prototype/snippet:go_default_library",
+        "//vendor/github.com/google/go-jsonnet/ast:go_default_library",
+        "//vendor/github.com/google/go-jsonnet/parser:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["snippet_test.go"],
+    importpath = "github.com/ksonnet/kubecfg/prototype/snippet/jsonnet",
+    library = ":go_default_library",
+)

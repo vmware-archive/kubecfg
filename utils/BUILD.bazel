@@ -1,0 +1,58 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "acquire.go",
+        "client.go",
+        "meta.go",
+        "nativefuncs.go",
+        "openapi.go",
+        "registry.go",
+        "resolver.go",
+        "sort.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/utils",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/emicklei/go-restful/swagger:go_default_library",
+        "//vendor/github.com/ghodss/yaml:go_default_library",
+        "//vendor/github.com/sirupsen/logrus:go_default_library",
+        "//vendor/github.com/strickyak/jsonnet_cgo:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/api/meta:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1/unstructured:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime/schema:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/util/yaml:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/version:go_default_library",
+        "//vendor/k8s.io/client-go/discovery:go_default_library",
+        "//vendor/k8s.io/client-go/dynamic:go_default_library",
+        "//vendor/k8s.io/client-go/rest:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "meta_test.go",
+        "nativefuncs_test.go",
+        "openapi_test.go",
+        "registry_test.go",
+        "resolver_test.go",
+        "sort_test.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/utils",
+    library = ":go_default_library",
+    deps = [
+        "//vendor/github.com/emicklei/go-restful/swagger:go_default_library",
+        "//vendor/github.com/strickyak/jsonnet_cgo:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1/unstructured:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime/schema:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/util/errors:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/version:go_default_library",
+        "//vendor/k8s.io/client-go/discovery/fake:go_default_library",
+        "//vendor/k8s.io/client-go/testing:go_default_library",
+    ],
+)

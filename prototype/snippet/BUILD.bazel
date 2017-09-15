@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "interface.go",
+        "lexer.go",
+        "marker.go",
+        "parser.go",
+        "template.go",
+        "util.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/prototype/snippet",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["parser_test.go"],
+    importpath = "github.com/ksonnet/kubecfg/prototype/snippet",
+    library = ":go_default_library",
+)

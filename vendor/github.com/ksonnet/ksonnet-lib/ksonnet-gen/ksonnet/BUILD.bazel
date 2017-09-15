@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "buffer.go",
+        "emit.go",
+        "util.go",
+    ],
+    importpath = "github.com/ksonnet/ksonnet-lib/ksonnet-gen/ksonnet",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/ksonnet/ksonnet-lib/ksonnet-gen/jsonnet:go_default_library",
+        "//vendor/github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubespec:go_default_library",
+        "//vendor/github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubeversion:go_default_library",
+    ],
+)

@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "ascii.go",
+        "delta.go",
+    ],
+    importpath = "github.com/yudai/gojsondiff/formatter",
+    visibility = ["//visibility:public"],
+    deps = ["//vendor/github.com/yudai/gojsondiff:go_default_library"],
+)

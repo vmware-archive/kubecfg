@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "expander.go",
+        "resolver.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/template",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//utils:go_default_library",
+        "//vendor/github.com/sirupsen/logrus:go_default_library",
+        "//vendor/github.com/strickyak/jsonnet_cgo:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1/unstructured:go_default_library",
+    ],
+)

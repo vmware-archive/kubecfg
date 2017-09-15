@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "ast.go",
+        "compkind_stringer.go",
+        "identifier_set.go",
+        "literalstringkind_stringer.go",
+        "location.go",
+        "objectfieldhide_stringer.go",
+        "objectfieldkind_stringer.go",
+        "util.go",
+    ],
+    importpath = "github.com/google/go-jsonnet/ast",
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "clusterspec.go",
+        "environment.go",
+        "interface.go",
+        "manager.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/metadata",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//prototype:go_default_library",
+        "//vendor/github.com/ksonnet/ksonnet-lib/ksonnet-gen/ksonnet:go_default_library",
+        "//vendor/github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubespec:go_default_library",
+        "//vendor/github.com/sirupsen/logrus:go_default_library",
+        "//vendor/github.com/spf13/afero:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "clusterspec_test.go",
+        "environment_test.go",
+        "manager_test.go",
+    ],
+    importpath = "github.com/ksonnet/kubecfg/metadata",
+    library = ":go_default_library",
+    deps = ["//vendor/github.com/spf13/afero:go_default_library"],
+)

@@ -1,0 +1,40 @@
+# gazelle:ignore
+# ignored as "std.jsonnet.h" was not being added by gazelle and c++03 flag not working with clang / osx.
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "ast.h",
+        "bridge.c",
+        "desugarer.cpp",
+        "desugarer.h",
+        "formatter.cpp",
+        "formatter.h",
+        "json.h",
+        "jsonnet.go",
+        "lexer.cpp",
+        "lexer.h",
+        "libjsonnet.cpp",
+        "libjsonnet.h",
+        "md5.cpp",
+        "md5.h",
+        "parser.cpp",
+        "parser.h",
+        "pass.cpp",
+        "pass.h",
+        "state.h",
+        "static_analysis.cpp",
+        "static_analysis.h",
+        "static_error.h",
+        "string_utils.cpp",
+        "string_utils.h",
+        "unicode.h",
+        "vm.cpp",
+        "vm.h",
+        "std.jsonnet.h",
+    ],
+    cgo = True,
+    copts = ["-O3"],
+    visibility = ["//visibility:public"],
+)
