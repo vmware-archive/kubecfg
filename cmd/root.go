@@ -372,16 +372,17 @@ func expandEnvCmdObjs(cmd *cobra.Command, envSpec *envSpec, cwd metadata.AbsPath
 			return nil, err
 		}
 
-		libPath, envLibPath := manager.LibPaths(*envSpec.env)
+		libPath, envLibPath, envComponentPath := manager.LibPaths(*envSpec.env)
 		expander.FlagJpath = append([]string{string(libPath), string(envLibPath)}, expander.FlagJpath...)
 
 		if !filesPresent {
-			fileNames, err = manager.ComponentPaths()
+			componentPaths, err := manager.ComponentPaths()
 			if err != nil {
 				return nil, err
 			}
-			baseObjExtCode := fmt.Sprintf("%s=%s", componentsExtCodeKey, constructBaseObj(fileNames))
+			baseObjExtCode := fmt.Sprintf("%s=%s", componentsExtCodeKey, constructBaseObj(componentPaths))
 			expander.ExtCodes = append([]string{baseObjExtCode}, expander.ExtCodes...)
+			fileNames = []string{string(envComponentPath)}
 		}
 	}
 

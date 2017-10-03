@@ -175,8 +175,9 @@ func (m *manager) CreateComponent(name string, text string, templateType prototy
 	return afero.WriteFile(m.appFS, componentPath, []byte(text), defaultFilePermissions)
 }
 
-func (m *manager) LibPaths(envName string) (libPath, envLibPath AbsPath) {
-	return m.libPath, appendToAbsPath(m.environmentsPath, envName, metadataDirName)
+func (m *manager) LibPaths(envName string) (libPath, envLibPath, envComponentPath AbsPath) {
+	envPath := appendToAbsPath(m.environmentsPath, envName)
+	return m.libPath, appendToAbsPath(envPath, metadataDirName), appendToAbsPath(envPath, path.Base(envName)+".jsonnet")
 }
 
 func (m *manager) createAppDirTree() error {
