@@ -263,7 +263,9 @@ func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, di
 }
 
 type envSpec struct {
-	env   *string
+	env  *string
+	env2 *string
+
 	files []string
 }
 
@@ -283,12 +285,16 @@ func parseEnvCmd(cmd *cobra.Command, args []string) (*envSpec, error) {
 		return nil, err
 	}
 
-	var env *string
-	if len(args) == 1 {
-		env = &args[0]
+	var env1 *string
+	if len(args) > 0 {
+		env1 = &args[0]
+	}
+	var env2 *string
+	if len(args) > 1 {
+		env2 = &args[1]
 	}
 
-	return &envSpec{env: env, files: files}, nil
+	return &envSpec{env: env1, env2: env2, files: files}, nil
 }
 
 // overrideCluster ensures that the cluster URI specified in the environment is
@@ -380,8 +386,9 @@ func expandEnvCmdObjs(cmd *cobra.Command, envSpec *envSpec, cwd metadata.AbsPath
 			if err != nil {
 				return nil, err
 			}
-			baseObjExtCode := fmt.Sprintf("%s=%s", componentsExtCodeKey, constructBaseObj(componentPaths))
-			expander.ExtCodes = append([]string{baseObjExtCode}, expander.ExtCodes...)
+
+			baseObj := constructBaseObj(componentPaths)
+			expander.ExtCodes = append([]string{baseObj}, expander.ExtCodes...)
 			fileNames = []string{string(envComponentPath)}
 		}
 	}
@@ -412,5 +419,5 @@ func constructBaseObj(paths []string) string {
 		fmt.Fprintf(&obj, "  %s: import \"%s\",\n", name, p)
 	}
 	obj.WriteString("}\n")
-	return obj.String()
+	return fmt.Sprintf("%s=%s", componentsExtCodeKey, obj.String())
 }

@@ -35,24 +35,60 @@ import (
 
 var ErrDiffFound = fmt.Errorf("Differences found.")
 
-// DiffCmd represents the diff subcommand
-type DiffCmd struct {
-	ClientPool       dynamic.ClientPool
-	Discovery        discovery.DiscoveryInterface
-	DefaultNamespace string
+// DiffCmd is an interface containing a set of functions that allow diffing
+// between two sets of data containing Kubernete resouces.
+type DiffCmd interface {
+	Run(out io.Writer) error
+}
 
+// Diff is a base representation of the `diff` functionality.
+type Diff struct {
 	DiffStrategy string
 }
 
-func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
-	sort.Sort(utils.AlphabeticalOrder(apiObjects))
+// Client holds the necessary information to connect with a remote Kubernetes
+// cluster.
+type Client struct {
+	ClientPool dynamic.ClientPool
+	Discovery  discovery.DiscoveryInterface
+	Namespace  string
+	// Name of the remote client to identify changes against. This field is Optional.
+	Name string
+	// APIObjects are the kubernetes objects being diffed against
+	APIObjects []*unstructured.Unstructured
+}
+
+// LocalEnv holds the local Kubernete objects for an environment and relevant
+// environment details, such as, environment name
+type LocalEnv struct {
+	Name       string
+	APIObjects []*unstructured.Unstructured
+}
+
+// ---------------------------------------------------------------------------
+
+// DiffRemoteCmd extends DiffCmd and is meant to represent diffing between some
+// set of Kubernete objects and the Kubernete objects located on a remote
+// client.
+type DiffRemoteCmd struct {
+	Diff
+	Client *Client
+}
+
+func (c *DiffRemoteCmd) Run(out io.Writer) error {
+	const (
+		local  = "config"
+		remote = "live"
+	)
+
+	sort.Sort(utils.AlphabeticalOrder(c.Client.APIObjects))
 
 	diffFound := false
-	for _, obj := range apiObjects {
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
+	for _, obj := range c.Client.APIObjects {
+		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Client.Discovery, obj), utils.FqName(obj))
 		log.Debugf("Fetching ", desc)
 
-		client, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		client, err := utils.ClientForResource(c.Client.ClientPool, c.Client.Discovery, obj, c.Client.Namespace)
 		if err != nil {
 			return err
 		}
@@ -65,33 +101,14 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 			return fmt.Errorf("Error fetching %s: %v", desc, err)
 		}
 
-		fmt.Fprintln(out, "---")
-		fmt.Fprintf(out, "- live %s\n+ config %s\n", desc, desc)
-		if liveObj == nil {
-			fmt.Fprintf(out, "%s doesn't exist on server\n", desc)
-			diffFound = true
-			continue
+		var liveObjObject map[string]interface{}
+		if liveObj != nil {
+			liveObjObject = liveObj.Object
 		}
 
-		liveObjObject := liveObj.Object
-		if c.DiffStrategy == "subset" {
-			liveObjObject = removeMapFields(obj.Object, liveObjObject)
-		}
-		diff := gojsondiff.New().CompareObjects(liveObjObject, obj.Object)
-
-		if diff.Modified() {
-			diffFound = true
-			fcfg := formatter.AsciiFormatterConfig{
-				Coloring: istty(out),
-			}
-			formatter := formatter.NewAsciiFormatter(liveObjObject, fcfg)
-			text, err := formatter.Format(diff)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(out, "%s", text)
-		} else {
-			fmt.Fprintf(out, "%s unchanged\n", desc)
+		diffFound, err = diff(desc, local, remote, c.DiffStrategy, obj.Object, liveObjObject, out)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -99,6 +116,81 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 		return ErrDiffFound
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+
+// DiffLocalCmd extends DiffCmd and is meant to represent diffing between two
+// sets of Kubernete objects.
+type DiffLocalCmd struct {
+	Diff
+	Env1 *LocalEnv
+	Env2 *LocalEnv
+}
+
+func (c *DiffLocalCmd) Run(out io.Writer) error {
+	sort.Sort(utils.AlphabeticalOrder(c.Env1.APIObjects))
+
+	m := map[string]*unstructured.Unstructured{}
+	for _, b := range c.Env2.APIObjects {
+		m[hash(b)] = b
+	}
+
+	diffFound := false
+	for _, a := range c.Env1.APIObjects {
+		desc := hash(a)
+		var bObj map[string]interface{}
+		if m[desc] != nil {
+			bObj = m[desc].Object
+		}
+
+		var err error
+		diffFound, err = diff(desc, c.Env1.Name, c.Env2.Name, c.DiffStrategy, a.Object, bObj, out)
+		if err != nil {
+			return err
+		}
+	}
+
+	if diffFound {
+		return ErrDiffFound
+	}
+	return nil
+}
+
+func hash(obj *unstructured.Unstructured) string {
+	return fmt.Sprintf("%s %s", utils.GroupVersionKindFor(obj), utils.FqName(obj))
+}
+
+// ---------------------------------------------------------------------------
+
+func diff(desc, aName, bName, strategy string, aObj, bObj map[string]interface{}, out io.Writer) (diffFound bool, err error) {
+	fmt.Fprintln(out, "---")
+	fmt.Fprintf(out, "- %s %s\n+ %s %s\n", bName, desc, aName, desc)
+	if bObj == nil {
+		fmt.Fprintf(out, "%s doesn't exist on %s\n", desc, bName)
+		return true, nil
+	}
+
+	if strategy == "subset" {
+		bObj = removeMapFields(aObj, bObj)
+	}
+	diff := gojsondiff.New().CompareObjects(bObj, aObj)
+
+	if diff.Modified() {
+		fcfg := formatter.AsciiFormatterConfig{
+			Coloring: istty(out),
+		}
+		formatter := formatter.NewAsciiFormatter(bObj, fcfg)
+		text, err := formatter.Format(diff)
+		if err != nil {
+			return true, err
+		}
+		fmt.Fprintf(out, "%s", text)
+		return true, nil
+	}
+
+	fmt.Fprintf(out, "%s unchanged\n", desc)
+	return false, nil
 }
 
 func removeFields(config, live interface{}) interface{} {
