@@ -86,7 +86,7 @@ func (c *DiffRemoteCmd) Run(out io.Writer) error {
 		return err
 	}
 
-	return diffAll(c.Client.APIObjects, liveObjs, local, remote, c.DiffStrategy, &c.Client.Discovery, out)
+	return diffAll(c.Client.APIObjects, liveObjs, local, remote, c.DiffStrategy, &c.Client.Discovery, true, out)
 }
 
 // ---------------------------------------------------------------------------
@@ -104,10 +104,10 @@ func (c *DiffLocalCmd) Run(out io.Writer) error {
 
 	m := map[string]*unstructured.Unstructured{}
 	for _, b := range c.Env2.APIObjects {
-		m[hash(nil, b)] = b
+		m[hash(nil, b, true)] = b
 	}
 
-	return diffAll(c.Env1.APIObjects, m, c.Env1.Name, c.Env2.Name, c.DiffStrategy, nil, out)
+	return diffAll(c.Env1.APIObjects, m, c.Env1.Name, c.Env2.Name, c.DiffStrategy, nil, true, out)
 }
 
 // ---------------------------------------------------------------------------
@@ -131,26 +131,26 @@ func (c *DiffRemotesCmd) Run(out io.Writer) error {
 		return err
 	}
 
-	return diffAll(liveObjsA, liveObjsB, c.ClientA.Name, c.ClientB.Name, c.DiffStrategy, &c.ClientA.Discovery, out)
+	return diffAll(liveObjsA, liveObjsB, c.ClientA.Name, c.ClientB.Name, c.DiffStrategy, &c.ClientA.Discovery, false, out)
 }
 
 // ---------------------------------------------------------------------------
 
 func diffAll(a []*unstructured.Unstructured, b map[string]*unstructured.Unstructured, aName, bName, strategy string,
-	discovery *discovery.DiscoveryInterface, out io.Writer) error {
+	discovery *discovery.DiscoveryInterface, fqName bool, out io.Writer) error {
 
 	sort.Sort(utils.AlphabeticalOrder(a))
 
 	diffFound := false
 	for _, o := range a {
-		desc := hash(discovery, o)
+		desc := hash(discovery, o, fqName)
 		var bObj map[string]interface{}
 		if b[desc] != nil {
 			bObj = b[desc].Object
 		}
 
 		var err error
-		log.Debugf("Diffing %s", desc)
+		log.Debugf("Diffing %s\nA: %s\nB: %s\n", desc, o.Object, bObj)
 		diffFound, err = diff(desc, aName, bName, strategy, o.Object, bObj, out)
 		if err != nil {
 			return err
@@ -193,11 +193,16 @@ func diff(desc, aName, bName, strategy string, aObj, bObj map[string]interface{}
 	return false, nil
 }
 
-func hash(discovery *discovery.DiscoveryInterface, obj *unstructured.Unstructured) string {
-	if discovery == nil {
-		return fmt.Sprintf("%s %s", utils.GroupVersionKindFor(obj), utils.FqName(obj))
+// hash serves as an identifier for the Kubernetes resource.
+func hash(discovery *discovery.DiscoveryInterface, obj *unstructured.Unstructured, fqName bool) string {
+	name := obj.GetName()
+	if fqName {
+		name = utils.FqName(obj)
 	}
-	return fmt.Sprintf("%s %s", utils.ResourceNameFor(*discovery, obj), utils.FqName(obj))
+	if discovery == nil {
+		return fmt.Sprintf("%s %s", utils.GroupVersionKindFor(obj), name)
+	}
+	return fmt.Sprintf("%s %s", utils.ResourceNameFor(*discovery, obj), name)
 }
 
 func getLiveObjs(client *Client) ([]*unstructured.Unstructured, map[string]*unstructured.Unstructured, error) {
@@ -205,7 +210,7 @@ func getLiveObjs(client *Client) ([]*unstructured.Unstructured, map[string]*unst
 	liveObjsMap := map[string]*unstructured.Unstructured{}
 
 	for _, obj := range client.APIObjects {
-		desc := hash(&client.Discovery, obj)
+		desc := hash(&client.Discovery, obj, true)
 		log.Debugf("Fetching %s", desc)
 
 		client, err := utils.ClientForResource(client.ClientPool, client.Discovery, obj, client.Namespace)
