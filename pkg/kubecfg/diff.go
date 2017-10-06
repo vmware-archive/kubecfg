@@ -81,41 +81,12 @@ func (c *DiffRemoteCmd) Run(out io.Writer) error {
 		remote = "live"
 	)
 
-	sort.Sort(utils.AlphabeticalOrder(c.Client.APIObjects))
-
-	diffFound := false
-	for _, obj := range c.Client.APIObjects {
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Client.Discovery, obj), utils.FqName(obj))
-		log.Debugf("Fetching ", desc)
-
-		client, err := utils.ClientForResource(c.Client.ClientPool, c.Client.Discovery, obj, c.Client.Namespace)
-		if err != nil {
-			return err
-		}
-
-		liveObj, err := client.Get(obj.GetName())
-		if err != nil && errors.IsNotFound(err) {
-			log.Debugf("%s doesn't exist on the server", desc)
-			liveObj = nil
-		} else if err != nil {
-			return fmt.Errorf("Error fetching %s: %v", desc, err)
-		}
-
-		var liveObjObject map[string]interface{}
-		if liveObj != nil {
-			liveObjObject = liveObj.Object
-		}
-
-		diffFound, err = diff(desc, local, remote, c.DiffStrategy, obj.Object, liveObjObject, out)
-		if err != nil {
-			return err
-		}
+	_, liveObjs, err := getLiveObjs(c.Client)
+	if err != nil {
+		return err
 	}
 
-	if diffFound {
-		return ErrDiffFound
-	}
-	return nil
+	return diffAll(c.Client.APIObjects, liveObjs, local, remote, c.DiffStrategy, &c.Client.Discovery, out)
 }
 
 // ---------------------------------------------------------------------------
@@ -133,19 +104,54 @@ func (c *DiffLocalCmd) Run(out io.Writer) error {
 
 	m := map[string]*unstructured.Unstructured{}
 	for _, b := range c.Env2.APIObjects {
-		m[hash(b)] = b
+		m[hash(nil, b)] = b
 	}
 
+	return diffAll(c.Env1.APIObjects, m, c.Env1.Name, c.Env2.Name, c.DiffStrategy, nil, out)
+}
+
+// ---------------------------------------------------------------------------
+
+// DiffRemotesCmd extends DiffCmd and is meant to represent diffing between the
+// Kubernete objects on two remote clients.
+type DiffRemotesCmd struct {
+	Diff
+	ClientA *Client
+	ClientB *Client
+}
+
+func (c *DiffRemotesCmd) Run(out io.Writer) error {
+	liveObjsA, _, err := getLiveObjs(c.ClientA)
+	if err != nil {
+		return err
+	}
+
+	_, liveObjsB, err := getLiveObjs(c.ClientB)
+	if err != nil {
+		return err
+	}
+
+	return diffAll(liveObjsA, liveObjsB, c.ClientA.Name, c.ClientB.Name, c.DiffStrategy, &c.ClientA.Discovery, out)
+}
+
+// ---------------------------------------------------------------------------
+
+func diffAll(a []*unstructured.Unstructured, b map[string]*unstructured.Unstructured, aName, bName, strategy string,
+	discovery *discovery.DiscoveryInterface, out io.Writer) error {
+
+	sort.Sort(utils.AlphabeticalOrder(a))
+
 	diffFound := false
-	for _, a := range c.Env1.APIObjects {
-		desc := hash(a)
+	for _, o := range a {
+		desc := hash(discovery, o)
 		var bObj map[string]interface{}
-		if m[desc] != nil {
-			bObj = m[desc].Object
+		if b[desc] != nil {
+			bObj = b[desc].Object
 		}
 
 		var err error
-		diffFound, err = diff(desc, c.Env1.Name, c.Env2.Name, c.DiffStrategy, a.Object, bObj, out)
+		log.Debugf("Diffing %s", desc)
+		diffFound, err = diff(desc, aName, bName, strategy, o.Object, bObj, out)
 		if err != nil {
 			return err
 		}
@@ -156,12 +162,6 @@ func (c *DiffLocalCmd) Run(out io.Writer) error {
 	}
 	return nil
 }
-
-func hash(obj *unstructured.Unstructured) string {
-	return fmt.Sprintf("%s %s", utils.GroupVersionKindFor(obj), utils.FqName(obj))
-}
-
-// ---------------------------------------------------------------------------
 
 func diff(desc, aName, bName, strategy string, aObj, bObj map[string]interface{}, out io.Writer) (diffFound bool, err error) {
 	fmt.Fprintln(out, "---")
@@ -191,6 +191,41 @@ func diff(desc, aName, bName, strategy string, aObj, bObj map[string]interface{}
 
 	fmt.Fprintf(out, "%s unchanged\n", desc)
 	return false, nil
+}
+
+func hash(discovery *discovery.DiscoveryInterface, obj *unstructured.Unstructured) string {
+	if discovery == nil {
+		return fmt.Sprintf("%s %s", utils.GroupVersionKindFor(obj), utils.FqName(obj))
+	}
+	return fmt.Sprintf("%s %s", utils.ResourceNameFor(*discovery, obj), utils.FqName(obj))
+}
+
+func getLiveObjs(client *Client) ([]*unstructured.Unstructured, map[string]*unstructured.Unstructured, error) {
+	var liveObjs []*unstructured.Unstructured
+	liveObjsMap := map[string]*unstructured.Unstructured{}
+
+	for _, obj := range client.APIObjects {
+		desc := hash(&client.Discovery, obj)
+		log.Debugf("Fetching %s", desc)
+
+		client, err := utils.ClientForResource(client.ClientPool, client.Discovery, obj, client.Namespace)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		liveObj, err := client.Get(obj.GetName())
+		if err != nil && errors.IsNotFound(err) {
+			log.Debugf("%s doesn't exist on the server", desc)
+			continue
+		} else if err != nil {
+			return nil, nil, fmt.Errorf("Error fetching %s: %v", desc, err)
+		}
+
+		liveObjs = append(liveObjs, liveObj)
+		liveObjsMap[desc] = liveObj
+	}
+
+	return liveObjs, liveObjsMap, nil
 }
 
 func removeFields(config, live interface{}) interface{} {

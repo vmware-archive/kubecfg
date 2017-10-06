@@ -20,8 +20,12 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ksonnet/kubecfg/metadata"
 	"github.com/ksonnet/kubecfg/pkg/kubecfg"
@@ -147,22 +151,24 @@ func initDiffCmd(cmd *cobra.Command, wd metadata.AbsPath, envSpec *envSpec, diff
 		return nil, fmt.Errorf("[env-name] must be prefaced by %s: or %s:, ex: %s:us-west/prod", local, remote, remote)
 	}
 
+	manager, err := metadata.Find(wd)
+	if err != nil {
+		return nil, err
+	}
+
+	componentPaths, err := manager.ComponentPaths()
+	if err != nil {
+		return nil, err
+	}
+
+	baseObj := constructBaseObj(componentPaths)
+
 	// ---------------------------------------------------------------------------
 	// Diff between two sets of expanded Kubernete objects
 	// ---------------------------------------------------------------------------
 	if env1[0] == local && env2[0] == local {
 		c := kubecfg.DiffLocalCmd{}
 		c.DiffStrategy = diffStrategy
-
-		manager, err := metadata.Find(wd)
-		if err != nil {
-			return nil, err
-		}
-
-		baseObj, err := constructBaseObj(manager)
-		if err != nil {
-			return nil, err
-		}
 
 		c.Env1 = &kubecfg.LocalEnv{}
 		c.Env1.Name = env1[1]
@@ -181,7 +187,85 @@ func initDiffCmd(cmd *cobra.Command, wd metadata.AbsPath, envSpec *envSpec, diff
 		return &c, nil
 	}
 
-	return nil, nil
+	// ---------------------------------------------------------------------------
+	// Diff between objects on two remote clusters
+	// ---------------------------------------------------------------------------
+	if env1[0] == remote && env2[0] == remote {
+		c := kubecfg.DiffRemotesCmd{}
+		c.DiffStrategy = diffStrategy
+
+		c.ClientA = &kubecfg.Client{}
+		c.ClientB = &kubecfg.Client{}
+
+		c.ClientA.Name = env1[1]
+		c.ClientB.Name = env2[1]
+
+		c.ClientA.APIObjects, err = expandEnvObjs(cmd, c.ClientA.Name, baseObj, manager)
+		if err != nil {
+			return nil, err
+		}
+		c.ClientB.APIObjects, err = expandEnvObjs(cmd, c.ClientB.Name, baseObj, manager)
+		if err != nil {
+			return nil, err
+		}
+
+		c.ClientA.ClientPool, c.ClientA.Discovery, c.ClientA.Namespace, err = setupClientConfig(&c.ClientA.Name, cmd)
+		if err != nil {
+			return nil, err
+		}
+
+		c.ClientB.ClientPool, c.ClientB.Discovery, c.ClientB.Namespace, err = setupClientConfig(&c.ClientB.Name, cmd)
+		if err != nil {
+			return nil, err
+		}
+
+		return &c, nil
+	}
+
+	// ---------------------------------------------------------------------------
+	// Diff between local objects and objects on a remote cluster
+	// ---------------------------------------------------------------------------
+	localEnv := env1[1]
+	remoteEnv := env2[1]
+	if env1[0] == remote {
+		localEnv = env2[1]
+		remoteEnv = env1[1]
+	}
+
+	c := kubecfg.DiffRemoteCmd{}
+	c.DiffStrategy = diffStrategy
+	c.Client = &kubecfg.Client{}
+
+	c.Client.APIObjects, err = expandEnvObjs(cmd, localEnv, baseObj, manager)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Client.ClientPool, c.Client.Discovery, c.Client.Namespace, err = setupClientConfig(&remoteEnv, cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+func setupClientConfig(env *string, cmd *cobra.Command) (dynamic.ClientPool, discovery.DiscoveryInterface, string, error) {
+	overrides := clientcmd.ConfigOverrides{}
+	loadingRules := *clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	config := clientcmd.NewInteractiveDeferredLoadingClientConfig(&loadingRules, &overrides, os.Stdin)
+
+	clientPool, discovery, err := restClient(cmd, env, config, overrides)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	namespace, err := namespace(config, overrides)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return clientPool, discovery, namespace, nil
 }
 
 // expandEnvObjs finds and expands templates for an environment

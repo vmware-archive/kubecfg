@@ -123,6 +123,10 @@ var RootCmd = &cobra.Command{
 // clientConfig.Namespace() is broken in client-go 3.0:
 // namespace in config erroneously overrides explicit --namespace
 func defaultNamespace(c clientcmd.ClientConfig) (string, error) {
+	return namespace(c, overrides)
+}
+
+func namespace(c clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) (string, error) {
 	if overrides.Context.Namespace != "" {
 		return overrides.Context.Namespace, nil
 	}
@@ -236,15 +240,15 @@ func dumpJSON(v interface{}) string {
 	return string(buf.Bytes())
 }
 
-func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
+func restClient(cmd *cobra.Command, envName *string, config clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
 	if envName != nil {
-		err := overrideCluster(*envName)
+		err := overrideCluster(*envName, config, overrides)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	conf, err := clientConfig.ClientConfig()
+	conf, err := config.ClientConfig()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -260,6 +264,10 @@ func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, di
 
 	pool := dynamic.NewClientPool(conf, mapper, pathresolver)
 	return pool, discoCache, nil
+}
+
+func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
+	return restClient(cmd, envName, clientConfig, overrides)
 }
 
 type envSpec struct {
@@ -304,7 +312,7 @@ func parseEnvCmd(cmd *cobra.Command, args []string) (*envSpec, error) {
 // If the environment URI the user is attempting to deploy to is not the current
 // kubeconfig context, we must manually override the client-go --cluster flag
 // to ensure we are deploying to the correct cluster.
-func overrideCluster(envName string) error {
+func overrideCluster(envName string, clientConfig clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
