@@ -123,6 +123,10 @@ var RootCmd = &cobra.Command{
 // clientConfig.Namespace() is broken in client-go 3.0:
 // namespace in config erroneously overrides explicit --namespace
 func defaultNamespace(c clientcmd.ClientConfig) (string, error) {
+	return namespace(c, overrides)
+}
+
+func namespace(c clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) (string, error) {
 	if overrides.Context.Namespace != "" {
 		return overrides.Context.Namespace, nil
 	}
@@ -236,15 +240,15 @@ func dumpJSON(v interface{}) string {
 	return string(buf.Bytes())
 }
 
-func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
+func restClient(cmd *cobra.Command, envName *string, config clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
 	if envName != nil {
-		err := overrideCluster(*envName)
+		err := overrideCluster(*envName, config, overrides)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	conf, err := clientConfig.ClientConfig()
+	conf, err := config.ClientConfig()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -262,8 +266,14 @@ func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, di
 	return pool, discoCache, nil
 }
 
+func restClientPool(cmd *cobra.Command, envName *string) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
+	return restClient(cmd, envName, clientConfig, overrides)
+}
+
 type envSpec struct {
-	env   *string
+	env  *string
+	env2 *string
+
 	files []string
 }
 
@@ -283,12 +293,16 @@ func parseEnvCmd(cmd *cobra.Command, args []string) (*envSpec, error) {
 		return nil, err
 	}
 
-	var env *string
-	if len(args) == 1 {
-		env = &args[0]
+	var env1 *string
+	if len(args) > 0 {
+		env1 = &args[0]
+	}
+	var env2 *string
+	if len(args) > 1 {
+		env2 = &args[1]
 	}
 
-	return &envSpec{env: env, files: files}, nil
+	return &envSpec{env: env1, env2: env2, files: files}, nil
 }
 
 // overrideCluster ensures that the cluster URI specified in the environment is
@@ -298,7 +312,7 @@ func parseEnvCmd(cmd *cobra.Command, args []string) (*envSpec, error) {
 // If the environment URI the user is attempting to deploy to is not the current
 // kubeconfig context, we must manually override the client-go --cluster flag
 // to ensure we are deploying to the correct cluster.
-func overrideCluster(envName string) error {
+func overrideCluster(envName string, clientConfig clientcmd.ClientConfig, overrides clientcmd.ConfigOverrides) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -372,16 +386,18 @@ func expandEnvCmdObjs(cmd *cobra.Command, envSpec *envSpec, cwd metadata.AbsPath
 			return nil, err
 		}
 
-		libPath, envLibPath := manager.LibPaths(*envSpec.env)
+		libPath, envLibPath, envComponentPath := manager.LibPaths(*envSpec.env)
 		expander.FlagJpath = append([]string{string(libPath), string(envLibPath)}, expander.FlagJpath...)
 
 		if !filesPresent {
-			fileNames, err = manager.ComponentPaths()
+			componentPaths, err := manager.ComponentPaths()
 			if err != nil {
 				return nil, err
 			}
-			baseObjExtCode := fmt.Sprintf("%s=%s", componentsExtCodeKey, constructBaseObj(fileNames))
-			expander.ExtCodes = append([]string{baseObjExtCode})
+
+			baseObj := constructBaseObj(componentPaths)
+			expander.ExtCodes = append([]string{baseObj}, expander.ExtCodes...)
+			fileNames = []string{string(envComponentPath)}
 		}
 	}
 
@@ -411,5 +427,5 @@ func constructBaseObj(paths []string) string {
 		fmt.Fprintf(&obj, "  %s: import \"%s\",\n", name, p)
 	}
 	obj.WriteString("}\n")
-	return obj.String()
+	return fmt.Sprintf("%s=%s", componentsExtCodeKey, obj.String())
 }
