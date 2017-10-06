@@ -69,6 +69,12 @@
 			"revisionTime": "2017-04-20T17:29:56Z"
 		},
 		{
+			"checksumSHA1": "CCfIpyo6sGH8gnEdP/0vGSi4ywA=",
+			"path": "github.com/cpuguy83/go-md2man/md2man",
+			"revision": "23709d0847197db6021a51fdb193e66e9222d4e7",
+			"revisionTime": "2017-06-03T12:52:39Z"
+		},
+		{
 			"checksumSHA1": "dvabztWVQX8f6oMLRyv4dLH+TGY=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
@@ -449,10 +455,22 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
+			"checksumSHA1": "jgYnx5m5SrWrh9GE5kNZlpMWyCY=",
+			"path": "github.com/russross/blackfriday",
+			"revision": "067529f716f4c3f5e37c8c95ddd59df1007290ae",
+			"revisionTime": "2017-06-10T17:02:32Z"
+		},
+		{
 			"checksumSHA1": "v7C+aJ1D/z3MEeCte6bxvpoGjM4=",
 			"path": "github.com/sergi/go-diff/diffmatchpatch",
 			"revision": "feef008d51ad2b3778f85d387ccf91735543008d",
 			"revisionTime": "2017-04-09T07:17:39Z"
+		},
+		{
+			"checksumSHA1": "7xtI4YHA5UU4Ra/A5tBZ6rxzqCg=",
+			"path": "github.com/shurcooL/sanitized_anchor_name",
+			"revision": "541ff5ee47f1dddf6a5281af78307d921524bcb5",
+			"revisionTime": "2017-05-15T01:32:39Z"
 		},
 		{
 			"checksumSHA1": "/YsxkUA+LSSCvK4zVU7Oa3s0470=",
@@ -475,6 +493,12 @@
 		{
 			"checksumSHA1": "Wgm8Y0np1Usy3+ZTTPFdHoqzed8=",
 			"path": "github.com/spf13/cobra",
+			"revision": "4673102358fdd630e3bb0eb6dee96e4b533d53ec",
+			"revisionTime": "2017-05-11T15:04:35Z"
+		},
+		{
+			"checksumSHA1": "NJF80yw0LnJWN/3rAGDoBzNFiOw=",
+			"path": "github.com/spf13/cobra/doc",
 			"revision": "4673102358fdd630e3bb0eb6dee96e4b533d53ec",
 			"revisionTime": "2017-05-11T15:04:35Z"
 		},
@@ -623,6 +647,12 @@
 			"revisionTime": "2017-08-25T18:47:02Z"
 		},
 		{
+			"checksumSHA1": "Ny6DIwANQghBAuvZx94MiMv2ppU=",
+			"path": "golang.org/x/text/collate/colltab",
+			"revision": "2910a502d2bf9e43193af9d68ca516529614eed3",
+			"revisionTime": "2016-07-21T22:28:28Z"
+		},
+		{
 			"checksumSHA1": "Mr4ur60bgQJnQFfJY0dGtwWwMPE=",
 			"path": "golang.org/x/text/encoding",
 			"revision": "ac87088df8ef557f1e32cd00ed0b6fbc3f7ddafb",
@@ -681,6 +711,12 @@
 			"path": "golang.org/x/text/encoding/unicode",
 			"revision": "ac87088df8ef557f1e32cd00ed0b6fbc3f7ddafb",
 			"revisionTime": "2017-08-24T15:10:30Z"
+		},
+		{
+			"checksumSHA1": "t8cZJsPlCGxQH30ShCsarbtuPT4=",
+			"path": "golang.org/x/text/internal/colltab",
+			"revision": "2910a502d2bf9e43193af9d68ca516529614eed3",
+			"revisionTime": "2016-07-21T22:28:28Z"
 		},
 		{
 			"checksumSHA1": "hyNCcTwMQnV6/MK8uUW9E5H0J0M=",

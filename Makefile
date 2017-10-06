@@ -31,12 +31,15 @@ GO_PACKAGES = ./cmd/... ./utils/... ./pkg/... ./metadata/... ./prototype/...
 # Default cluster from this config is used for integration tests
 KUBECONFIG = $(HOME)/.kube/config
 
-all: kubecfg
+all: kubecfg docs
 
 kubecfg:
 	$(GO) build $(GO_FLAGS) .
 
-test: gotest jsonnettest
+docs:
+	./docs/generate/update-generated-docs.sh
+
+test: gotest jsonnettest docstest
 
 gotest:
 	$(GO) test $(GO_FLAGS) $(GO_PACKAGES)
@@ -47,6 +50,9 @@ jsonnettest: kubecfg $(JSONNET_FILES)
 
 integrationtest: kubecfg
 	$(GINKGO) -tags 'integration' integration -- -kubeconfig $(KUBECONFIG) -kubecfg-bin $(abspath $<)
+
+docstest:
+	./docs/generate/verify-generated-docs.sh
 
 vet:
 	$(GO) vet $(GO_FLAGS) $(GO_PACKAGES)
