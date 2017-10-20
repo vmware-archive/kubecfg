@@ -1,0 +1,58 @@
+project_name: kubecfg
+
+builds:
+  - binary: kubecfg
+
+    env:
+      - CGO_ENABLED=1
+
+    goos:
+      - darwin
+      - linux
+
+    goarch:
+      - amd64
+
+    ignore:
+      - goos: darwin
+        goarch: 386
+
+archive:
+  format: tar.gz
+  name_template: >-
+    {{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}
+  wrap_in_directory: true
+
+  format_overrides:
+    - goos: windows
+      format: zip
+
+  files:
+    - lib/kubecfg.libsonnet
+
+checksum:
+  name_template: "{{ .ProjectName }}-{{ .Version }}-checksums.txt"
+
+release:
+  draft: true
+  name_template: "v{{ .Version }}"
+
+brew:
+  github:
+    owner: ksonnet
+    name: kubecfg-tap
+
+  commit_author:
+    name: goreleaserbot
+    email: goreleaser@ksonnet.io
+
+  homepage: "https://github.com/ksonnet/kubecfg"
+  description: >-
+    A tool for managing complex enterprise Kubernetes environments as
+    code.
+
+  test: |
+    system "#{bin}/kubecfg version"
+
+  install: |
+    bin.install "kubecfg"

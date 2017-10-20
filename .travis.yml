@@ -118,6 +118,20 @@ script:
 
 after_script: set +e
 
+after_success:
+  - |
+    if [ "$TRAVIS_OS_NAME" = linux ]; then
+       if ! which goreleaser; then
+          wget -O /tmp/goreleaser.tar.gz https://github.com/goreleaser/goreleaser/releases/download/v0.35.3/goreleaser_Linux_amd64.tar.gz
+          tar xvf /tmp/goreleaser.tar.gz -C $GOPATH/bin/
+       fi
+       if [ -n "$TRAVIS_TAG" ]; then
+          goreleaser --snapshot
+       else
+          goreleaser
+       fi
+    fi
+
 before_deploy:
   - echo TARGET=$TARGET OS_NAME=$TRAVIS_OS_NAME GO_VERSION=$TRAVIS_GO_VERSION
   - EXE_NAME=kubecfg-$(go env GOOS)-$(go env GOARCH)
