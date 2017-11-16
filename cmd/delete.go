@@ -17,12 +17,14 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"sort"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/ksonnet/kubecfg/metadata"
-	"github.com/ksonnet/kubecfg/pkg/kubecfg"
+	"github.com/ksonnet/kubecfg/utils"
 )
 
 const (
@@ -31,76 +33,73 @@ const (
 
 func init() {
 	RootCmd.AddCommand(deleteCmd)
-	addEnvCmdFlags(deleteCmd)
-	bindClientGoFlags(deleteCmd)
-	bindJsonnetFlags(deleteCmd)
 	deleteCmd.PersistentFlags().Int64(flagGracePeriod, -1, "Number of seconds given to resources to terminate gracefully. A negative value is ignored")
 }
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete [env-name] [-f <file-or-dir>]",
+	Use:   "delete",
 	Short: "Delete Kubernetes resources described in local config",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) > 1 {
-			return fmt.Errorf("'delete' takes at most a single argument, that is the name of the environment")
-		}
-
 		flags := cmd.Flags()
-		var err error
 
-		c := kubecfg.DeleteCmd{}
-
-		c.GracePeriod, err = flags.GetInt64(flagGracePeriod)
+		gracePeriod, err := flags.GetInt64(flagGracePeriod)
 		if err != nil {
 			return err
 		}
 
-		cwd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		wd := metadata.AbsPath(cwd)
-
-		envSpec, err := parseEnvCmd(cmd, args)
+		objs, err := readObjs(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		c.ClientPool, c.Discovery, err = restClientPool(cmd, envSpec.env)
+		clientpool, disco, err := restClientPool(cmd)
 		if err != nil {
 			return err
 		}
 
-		c.DefaultNamespace, err = defaultNamespace()
+		defaultNs, _, err := clientConfig.Namespace()
 		if err != nil {
 			return err
 		}
 
-		objs, err := expandEnvCmdObjs(cmd, envSpec, wd)
+		version, err := utils.FetchVersion(disco)
 		if err != nil {
 			return err
 		}
 
-		return c.Run(objs)
+		sort.Sort(sort.Reverse(utils.DependencyOrder(objs)))
+
+		deleteOpts := metav1.DeleteOptions{}
+		if version.Compare(1, 6) < 0 {
+			// 1.5.x option
+			boolFalse := false
+			deleteOpts.OrphanDependents = &boolFalse
+		} else {
+			// 1.6.x option (NB: Background is broken)
+			fg := metav1.DeletePropagationForeground
+			deleteOpts.PropagationPolicy = &fg
+		}
+		if gracePeriod >= 0 {
+			deleteOpts.GracePeriodSeconds = &gracePeriod
+		}
+
+		for _, obj := range objs {
+			desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(disco, obj), utils.FqName(obj))
+			log.Info("Deleting ", desc)
+
+			c, err := utils.ClientForResource(clientpool, disco, obj, defaultNs)
+			if err != nil {
+				return err
+			}
+
+			err = c.Delete(obj.GetName(), &deleteOpts)
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("Error deleting %s: %s", desc, err)
+			}
+
+			log.Debugf("Deleted object: ", obj)
+		}
+
+		return nil
 	},
-	Long: `Delete Kubernetes resources from a cluster, as described in the local
-configuration.
-
-ksonnet applications are accepted, as well as normal JSON, YAML, and Jsonnet
-files.`,
-	Example: `  # Delete all resources described in a ksonnet application, from the 'dev'
-  # environment. Can be used in any subdirectory of the application.
-  ksonnet delete dev
-
-  # Delete resources described in a YAML file. Automatically picks up the
-  # cluster's location from '$KUBECONFIG'.
-  ksonnet delete -f ./pod.yaml
-
-  # Delete resources described in the JSON file from the 'dev' environment. Can
-  # be used in any subdirectory of the application.
-  ksonnet delete dev -f ./pod.json
-
-  # Delete resources described in a YAML file, and running in the cluster
-  # specified by the current context in specified kubeconfig file.
-  ksonnet delete --kubeconfig=./kubeconfig -f ./pod.yaml`,
 }

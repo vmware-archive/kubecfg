@@ -16,13 +16,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/ksonnet/kubecfg/metadata"
-	"github.com/ksonnet/kubecfg/pkg/kubecfg"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -31,45 +29,62 @@ const (
 
 func init() {
 	RootCmd.AddCommand(showCmd)
-	addEnvCmdFlags(showCmd)
-	bindJsonnetFlags(showCmd)
 	showCmd.PersistentFlags().StringP(flagFormat, "o", "yaml", "Output format.  Supported values are: json, yaml")
 }
 
 var showCmd = &cobra.Command{
-	Use:   "show [<env>|-f <file-or-dir>]",
+	Use:   "show",
 	Short: "Show expanded resource definitions",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) > 1 {
-			return fmt.Errorf("'show' takes at most a single argument, that is the name of the environment")
-		}
-
 		flags := cmd.Flags()
-		var err error
+		out := cmd.OutOrStdout()
 
-		c := kubecfg.ShowCmd{}
-
-		c.Format, err = flags.GetString(flagFormat)
+		objs, err := readObjs(cmd, args)
 		if err != nil {
 			return err
 		}
 
-		cwd, err := os.Getwd()
+		format, err := flags.GetString(flagFormat)
 		if err != nil {
 			return err
 		}
-		wd := metadata.AbsPath(cwd)
-
-		envSpec, err := parseEnvCmd(cmd, args)
-		if err != nil {
-			return err
+		switch format {
+		case "yaml":
+			for _, obj := range objs {
+				fmt.Fprintln(out, "---")
+				// Urgh.  Go via json because we need
+				// to trigger the custom scheme
+				// encoding.
+				buf, err := json.Marshal(obj)
+				if err != nil {
+					return err
+				}
+				o := map[string]interface{}{}
+				if err := json.Unmarshal(buf, &o); err != nil {
+					return err
+				}
+				buf, err = yaml.Marshal(o)
+				if err != nil {
+					return err
+				}
+				out.Write(buf)
+			}
+		case "json":
+			enc := json.NewEncoder(out)
+			enc.SetIndent("", "  ")
+			for _, obj := range objs {
+				// TODO: this is not valid framing for JSON
+				if len(objs) > 1 {
+					fmt.Fprintln(out, "---")
+				}
+				if err := enc.Encode(obj); err != nil {
+					return err
+				}
+			}
+		default:
+			return fmt.Errorf("Unknown --format: %s", format)
 		}
 
-		objs, err := expandEnvCmdObjs(cmd, envSpec, wd)
-		if err != nil {
-			return err
-		}
-
-		return c.Run(objs, cmd.OutOrStdout())
+		return nil
 	},
 }
