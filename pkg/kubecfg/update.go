@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/ksonnet/kubecfg/metadata"
 	"github.com/ksonnet/kubecfg/utils"
 )
 
@@ -39,8 +38,8 @@ const (
 	GcStrategyIgnore = "ignore"
 )
 
-// ApplyCmd represents the apply subcommand
-type ApplyCmd struct {
+// UpdateCmd represents the update subcommand
+type UpdateCmd struct {
 	ClientPool       dynamic.ClientPool
 	Discovery        discovery.DiscoveryInterface
 	DefaultNamespace string
@@ -51,7 +50,7 @@ type ApplyCmd struct {
 	DryRun bool
 }
 
-func (c ApplyCmd) Run(apiObjects []*unstructured.Unstructured, wd metadata.AbsPath) error {
+func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 	dryRunText := ""
 	if c.DryRun {
 		dryRunText = " (dry-run)"

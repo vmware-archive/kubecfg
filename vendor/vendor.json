@@ -161,18 +161,6 @@
 			"revisionTime": "2017-08-16T00:15:14Z"
 		},
 		{
-			"checksumSHA1": "pks4vOMGe/SWJkCPDraWp6B4kZQ=",
-			"path": "github.com/google/go-jsonnet/ast",
-			"revision": "5cd467fd1885ca5527a3ab19c45baf9ddc786249",
-			"revisionTime": "2017-08-24T19:11:05Z"
-		},
-		{
-			"checksumSHA1": "FdqrqmPqoaxcw2O22+/l2HXv9Zg=",
-			"path": "github.com/google/go-jsonnet/parser",
-			"revision": "5cd467fd1885ca5527a3ab19c45baf9ddc786249",
-			"revisionTime": "2017-08-24T19:11:05Z"
-		},
-		{
 			"checksumSHA1": "fgPBEKvm7D7y4IMxGaxHsPmtYtU=",
 			"path": "github.com/google/gofuzz",
 			"revision": "44d81051d367757e1c7c6a5a86423ece9afcf63c",
@@ -207,30 +195,6 @@
 			"path": "github.com/juju/ratelimit",
 			"revision": "acf38b000a03e4ab89e40f20f1e548f4e6ac7f72",
 			"revisionTime": "2017-03-14T01:17:55Z"
-		},
-		{
-			"checksumSHA1": "wX+GmcWpMzCIcxR9YtN1FCM9BEE=",
-			"path": "github.com/ksonnet/ksonnet-lib/ksonnet-gen/jsonnet",
-			"revision": "b27d2d7778c12c3d762d24c1b9fd4c41da6c73c7",
-			"revisionTime": "2017-09-10T05:18:39Z"
-		},
-		{
-			"checksumSHA1": "zJx/j+IS6qd0P5h2m8WEQEtrACU=",
-			"path": "github.com/ksonnet/ksonnet-lib/ksonnet-gen/ksonnet",
-			"revision": "b27d2d7778c12c3d762d24c1b9fd4c41da6c73c7",
-			"revisionTime": "2017-09-10T05:18:39Z"
-		},
-		{
-			"checksumSHA1": "BiiHRiYpSOb+vHiP6h/A9lRotEY=",
-			"path": "github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubespec",
-			"revision": "b27d2d7778c12c3d762d24c1b9fd4c41da6c73c7",
-			"revisionTime": "2017-09-10T05:18:39Z"
-		},
-		{
-			"checksumSHA1": "lr+Bx7/N2KHk9dOrsWfLYBPjbdQ=",
-			"path": "github.com/ksonnet/ksonnet-lib/ksonnet-gen/kubeversion",
-			"revision": "b27d2d7778c12c3d762d24c1b9fd4c41da6c73c7",
-			"revisionTime": "2017-09-10T05:18:39Z"
 		},
 		{
 			"checksumSHA1": "T8soMJArSZrYnhmdpAnq1bVxQ6Q=",
@@ -459,18 +423,6 @@
 			"path": "github.com/sirupsen/logrus",
 			"revision": "3d4380f53a34dcdc95f0c1db702615992b38d9a4",
 			"revisionTime": "2017-06-20T14:45:10Z"
-		},
-		{
-			"checksumSHA1": "lBehULzb2/kIK3wZ0gz2yNmHq9s=",
-			"path": "github.com/spf13/afero",
-			"revision": "9be650865eab0c12963d8753212f4f9c66cdcf12",
-			"revisionTime": "2017-02-17T16:41:46Z"
-		},
-		{
-			"checksumSHA1": "5KRbEQ28dDaQmKwAYTD0if/aEvg=",
-			"path": "github.com/spf13/afero/mem",
-			"revision": "9be650865eab0c12963d8753212f4f9c66cdcf12",
-			"revisionTime": "2017-02-17T16:41:46Z"
 		},
 		{
 			"checksumSHA1": "Wgm8Y0np1Usy3+ZTTPFdHoqzed8=",
