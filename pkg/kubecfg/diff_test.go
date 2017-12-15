@@ -99,6 +99,21 @@ func TestRemoveFields(t *testing.T) {
 			live:     "b",
 			expected: "b",
 		},
+		// Check we handle empty configs by copying them as if were live
+		// (API won't return them)
+		{
+			config: map[string]interface{}{
+				"args":    map[string]interface{}{},
+				"volumes": []string{},
+				"stdin":   false,
+			},
+			live: map[string]interface{}{},
+			expected: map[string]interface{}{
+				"args":    map[string]interface{}{},
+				"volumes": []string{},
+				"stdin":   false,
+			},
+		},
 
 		// Check we can handle combinations.
 		{

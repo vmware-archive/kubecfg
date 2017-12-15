@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
 
 	isatty "github.com/mattn/go-isatty"
@@ -102,6 +103,26 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 	return nil
 }
 
+// isEmptyValue is taken from the encoding/json package in the
+// standard library.
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
+}
+
 func removeFields(config, live interface{}) interface{} {
 	switch c := config.(type) {
 	case map[string]interface{}:
@@ -118,6 +139,9 @@ func removeMapFields(config, live map[string]interface{}) map[string]interface{}
 	for k, v1 := range config {
 		v2, ok := live[k]
 		if !ok {
+			if isEmptyValue(reflect.ValueOf(v1)) {
+				result[k] = v1
+			}
 			continue
 		}
 		result[k] = removeFields(v1, v2)
