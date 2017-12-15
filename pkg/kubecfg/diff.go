@@ -105,6 +105,8 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 
 // isEmptyValue is taken from the encoding/json package in the
 // standard library.
+// See also feature request for golang reflect pkg at
+// https://github.com/golang/go/issues/7501
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
@@ -139,6 +141,8 @@ func removeMapFields(config, live map[string]interface{}) map[string]interface{}
 	for k, v1 := range config {
 		v2, ok := live[k]
 		if !ok {
+			// Copy empty value from config, as API won't return them,
+			// see https://github.com/ksonnet/kubecfg/issues/179
 			if isEmptyValue(reflect.ValueOf(v1)) {
 				result[k] = v1
 			}
