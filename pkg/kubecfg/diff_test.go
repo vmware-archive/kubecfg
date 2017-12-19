@@ -80,12 +80,6 @@ func TestRemoveFields(t *testing.T) {
 		"args":    map[string]interface{}{},
 		"volumes": []string{},
 		"stdin":   false,
-		"spec": map[string]interface{}{
-			"selector": map[string]interface{}{},
-			"ports": []interface{}{
-				map[string]interface{}{},
-			},
-		},
 	}
 	for _, tc := range []struct {
 		config, live, expected interface{}

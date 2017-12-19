@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"sort"
 
 	isatty "github.com/mattn/go-isatty"
@@ -103,26 +102,26 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 	return nil
 }
 
-// isEmptyValue is taken from the encoding/json package in the
-// standard library.
 // See also feature request for golang reflect pkg at
-// https://github.com/golang/go/issues/7501
-func isEmptyValue(v reflect.Value) bool {
-	switch v.Kind() {
-	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
-		return v.Len() == 0
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
-		return v.IsNil()
+func isEmptyValue(i interface{}) bool {
+	switch v := i.(type) {
+	case []interface{}:
+		return len(v) == 0
+	case []string:
+		return len(v) == 0
+	case map[string]interface{}:
+		return len(v) == 0
+	case bool:
+		return !v
+	case float64:
+		return v == 0
+	case string:
+		return v == ""
+	case nil:
+		return true
+	default:
+		panic(fmt.Sprintf("Found unexpected type %T in json unmarshal (value=%v)", i, i))
 	}
-	return false
 }
 
 func removeFields(config, live interface{}) interface{} {
@@ -143,7 +142,7 @@ func removeMapFields(config, live map[string]interface{}) map[string]interface{}
 		if !ok {
 			// Copy empty value from config, as API won't return them,
 			// see https://github.com/ksonnet/kubecfg/issues/179
-			if isEmptyValue(reflect.ValueOf(v1)) {
+			if isEmptyValue(v1) {
 				result[k] = v1
 			}
 			continue
