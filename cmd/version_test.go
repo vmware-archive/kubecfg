@@ -16,9 +16,24 @@
 package cmd
 
 import (
+	"bytes"
 	"regexp"
 	"testing"
 )
+
+func cmdOutput(t *testing.T, args []string) string {
+	var buf bytes.Buffer
+	RootCmd.SetOutput(&buf)
+	defer RootCmd.SetOutput(nil)
+
+	t.Log("Running args", args)
+	RootCmd.SetArgs(args)
+	if err := RootCmd.Execute(); err != nil {
+		t.Fatal("command failed:", err)
+	}
+
+	return buf.String()
+}
 
 func TestVersion(t *testing.T) {
 	output := cmdOutput(t, []string{"version"})

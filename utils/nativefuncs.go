@@ -20,12 +20,13 @@ import (
 	"encoding/json"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 
 	goyaml "github.com/ghodss/yaml"
-
 	jsonnet "github.com/strickyak/jsonnet_cgo"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/discovery"
 )
 
 func resolveImage(resolver Resolver, image string) (string, error) {
@@ -42,7 +43,7 @@ func resolveImage(resolver Resolver, image string) (string, error) {
 }
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
-func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
+func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver, disco discovery.DiscoveryInterface) {
 	// NB: libjsonnet native functions can only pass primitive
 	// types, so some functions json-encode the arg.  These
 	// "*FromJson" functions will be replaced by regular native
@@ -104,5 +105,41 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 			return "", err
 		}
 		return r.ReplaceAllString(src, repl), nil
+	})
+
+	vm.NativeCallback("kubernetesVersion", []string{}, func() ([]interface{}, error) {
+		info, err := disco.ServerVersion()
+		if err != nil {
+			return nil, err
+		}
+
+		// kubernetes/pkg/version/base.go says:
+		// gitMajor: major version, always numeric
+		// gitMinor: minor version, numeric possibly followed by "+"
+		major, err := strconv.Atoi(info.Major)
+		if err != nil {
+			return nil, err
+		}
+		minor, err := strconv.Atoi(strings.TrimSuffix(info.Minor, "+"))
+		if err != nil {
+			return nil, err
+		}
+		return []interface{}{major, minor}, nil
+	})
+
+	vm.NativeCallback("kubernetesGroupVersionSupported", []string{"gv"}, func(gv string) (bool, error) {
+		groups, err := disco.ServerGroups()
+		if err != nil {
+			return false, err
+		}
+
+		for _, g := range groups.Groups {
+			for _, v := range g.Versions {
+				if v.GroupVersion == gv {
+					return true, nil
+				}
+			}
+		}
+		return false, nil
 	})
 }

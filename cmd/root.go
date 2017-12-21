@@ -165,7 +165,7 @@ func (f *logFormatter) Format(e *log.Entry) ([]byte, error) {
 
 // JsonnetVM constructs a new jsonnet.VM, according to command line
 // flags
-func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
+func JsonnetVM(cmd *cobra.Command, disco discovery.DiscoveryInterface) (*jsonnet.VM, error) {
 	vm := jsonnet.Make()
 	flags := cmd.Flags()
 
@@ -258,7 +258,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 	if err != nil {
 		return nil, err
 	}
-	utils.RegisterNativeFuncs(vm, resolver)
+	utils.RegisterNativeFuncs(vm, resolver, disco)
 
 	return vm, nil
 }
@@ -317,8 +317,8 @@ func (r *resolverErrorWrapper) Resolve(image *utils.ImageName) error {
 	return err
 }
 
-func readObjs(cmd *cobra.Command, paths []string) ([]*unstructured.Unstructured, error) {
-	vm, err := JsonnetVM(cmd)
+func readObjs(cmd *cobra.Command, paths []string, disco discovery.DiscoveryInterface) ([]*unstructured.Unstructured, error) {
+	vm, err := JsonnetVM(cmd, disco)
 	if err != nil {
 		return nil, err
 	}

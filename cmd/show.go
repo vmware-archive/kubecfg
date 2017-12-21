@@ -44,7 +44,12 @@ var showCmd = &cobra.Command{
 			return err
 		}
 
-		objs, err := readObjs(cmd, args)
+		_, disco, err := restClientPool(cmd)
+		if err != nil {
+			return err
+		}
+
+		objs, err := readObjs(cmd, args, disco)
 		if err != nil {
 			return err
 		}
