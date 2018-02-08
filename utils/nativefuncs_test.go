@@ -18,7 +18,7 @@ package utils
 import (
 	"testing"
 
-	jsonnet "github.com/strickyak/jsonnet_cgo"
+	jsonnet "github.com/google/go-jsonnet"
 )
 
 // check there is no err, and a == b.
@@ -31,8 +31,7 @@ func check(t *testing.T, err error, actual, expected string) {
 }
 
 func TestParseJson(t *testing.T) {
-	vm := jsonnet.Make()
-	defer vm.Destroy()
+	vm := jsonnet.MakeVM()
 	RegisterNativeFuncs(vm, NewIdentityResolver())
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("parseJson")("barf{")`)
@@ -50,8 +49,7 @@ func TestParseJson(t *testing.T) {
 }
 
 func TestParseYaml(t *testing.T) {
-	vm := jsonnet.Make()
-	defer vm.Destroy()
+	vm := jsonnet.MakeVM()
 	RegisterNativeFuncs(vm, NewIdentityResolver())
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("parseYaml")("[barf")`)
@@ -74,8 +72,7 @@ func TestParseYaml(t *testing.T) {
 }
 
 func TestRegexMatch(t *testing.T) {
-	vm := jsonnet.Make()
-	defer vm.Destroy()
+	vm := jsonnet.MakeVM()
 	RegisterNativeFuncs(vm, NewIdentityResolver())
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("regexMatch")("[f", "foo")`)
@@ -91,8 +88,7 @@ func TestRegexMatch(t *testing.T) {
 }
 
 func TestRegexSubst(t *testing.T) {
-	vm := jsonnet.Make()
-	defer vm.Destroy()
+	vm := jsonnet.MakeVM()
 	RegisterNativeFuncs(vm, NewIdentityResolver())
 
 	_, err := vm.EvaluateSnippet("failtest", `std.native("regexSubst")("[f",s "foo", "bar")`)

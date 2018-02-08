@@ -171,6 +171,24 @@
 			"revisionTime": "2017-08-16T00:15:14Z"
 		},
 		{
+			"checksumSHA1": "n3Q/VKITvz2iOcqZ9UFG6LE67EY=",
+			"path": "github.com/google/go-jsonnet",
+			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
+			"revisionTime": "2018-02-01T19:21:39Z"
+		},
+		{
+			"checksumSHA1": "UjLF8Vwca8pHJZovPq8tw64LK/0=",
+			"path": "github.com/google/go-jsonnet/ast",
+			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
+			"revisionTime": "2018-02-01T19:21:39Z"
+		},
+		{
+			"checksumSHA1": "bAHDsLfmK8DrAYw4hFaKtbhwruc=",
+			"path": "github.com/google/go-jsonnet/parser",
+			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
+			"revisionTime": "2018-02-01T19:21:39Z"
+		},
+		{
 			"checksumSHA1": "fgPBEKvm7D7y4IMxGaxHsPmtYtU=",
 			"path": "github.com/google/gofuzz",
 			"revision": "44d81051d367757e1c7c6a5a86423ece9afcf63c",
@@ -457,12 +475,6 @@
 			"path": "github.com/stretchr/testify/require",
 			"revision": "f6abca593680b2315d2075e0f5e2a9751e3f431a",
 			"revisionTime": "2017-06-01T20:57:54Z"
-		},
-		{
-			"checksumSHA1": "zHXKW3VTfu4Dswo3GTsCGVCZuw4=",
-			"path": "github.com/strickyak/jsonnet_cgo",
-			"revision": "04f8990f6dd09242167d7320e3267a4326ffdcfb",
-			"revisionTime": "2017-06-22T22:16:47Z"
 		},
 		{
 			"checksumSHA1": "MxLnUmfrP+r5HfCZM29+WPKebn8=",
