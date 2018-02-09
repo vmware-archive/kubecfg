@@ -13,31 +13,33 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-VERSION = dev-$(shell date +%FT%T%z)
+VERSION ?= dev-$(shell date +%FT%T%z)
 
-GO = go
-EXTRA_GO_FLAGS =
-GO_FLAGS = -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)" $(EXTRA_GO_FLAGS)
-GOFMT = gofmt
+GO ?= go
+GO_FLAGS ?=
+GO_LDFLAGS ?=
+GO_TESTFLAGS ?= -race
+GO_BUILDFLAGS ?= -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
+GOFMT ?= gofmt
 # GINKGO = "go test" also works if you want to avoid ginkgo tool
-GINKGO = ginkgo
+GINKGO ?= ginkgo
 
 JSONNET_FILES = lib/kubecfg_test.jsonnet examples/guestbook.jsonnet
 # TODO: Simplify this once ./... ignores ./vendor
 GO_PACKAGES = ./cmd/... ./utils/... ./pkg/...
 
 # Default cluster from this config is used for integration tests
-KUBECONFIG = $(HOME)/.kube/config
+KUBECONFIG ?= $(HOME)/.kube/config
 
 all: kubecfg
 
 kubecfg:
-	$(GO) build $(GO_FLAGS) .
+	$(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
 
 test: gotest jsonnettest
 
 gotest:
-	$(GO) test $(GO_FLAGS) $(GO_PACKAGES)
+	$(GO) test $(GO_FLAGS) $(GO_BUILDFLAGS) $(GO_TESTFLAGS) $(GO_PACKAGES)
 
 jsonnettest: kubecfg $(JSONNET_FILES)
 #	TODO: use `kubecfg check` once implemented

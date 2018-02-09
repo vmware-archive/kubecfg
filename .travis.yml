@@ -1,17 +1,19 @@
 language: go
 
 go:
+  # NB: order matters - matrix items that don't specify will use the
+  # first value (ditto for `os` below)
+  - 1.9.x
   - 1.8.x
-  - 1.7.x
 
 os:
   - linux
+  - osx
 
 env:
   global:
     - PATH=$PATH:$GOPATH/bin
     - VERSION="${TRAVIS_TAG:-build-$TRAVIS_BUILD_ID}"
-    - EXTRA_GO_FLAGS_TEST="-race"
     - MINIKUBE_WANTUPDATENOTIFICATION=false
     - MINIKUBE_WANTREPORTERRORPROMPT=false
     - MINIKUBE_HOME=${HOME}
@@ -22,19 +24,18 @@ osx_image: xcode8.3
 
 matrix:
   include:
-    - env: TARGET=x86_64-linux-musl EXTRA_GO_FLAGS_TEST=""
-      go: 1.8.x
+    - env: TARGET=x86_64-linux-musl GO_TESTFLAGS=""
     - env: DO_INTEGRATION_TEST=1 INT_KVERS=v1.7.0
+  fast_finish: true
+  allow_failures:
+    # Let us know if/when 'go test' works again on MacOS..
     # cgo requires golang >= 1.8.1 (or other workarounds) on recent
     # osx/xcode - see https://github.com/golang/go/issues/19734
     # 'go test' also hangs repeatably on go-1.8.3/MacOS ?
     - os: osx
       go: 1.8.x
-  fast_finish: true
-  allow_failures:
-    # Let us know if/when 'go test' works again on MacOS..
     - os: osx
-      go: 1.8.x
+      go: 1.9.x
 
 services:
   - docker
@@ -103,9 +104,7 @@ install:
     fi
 
 script:
-  - make VERSION="$VERSION" EXTRA_GO_FLAGS="$EXTRA_GO_FLAGS_TEST" test
-  - make vet
-  - rm -f ./kubecfg && make VERSION="$VERSION"
+  - make all test vet
   - >
     ldd ./kubecfg || otool -L ./kubecfg || :
   - ./kubecfg help
@@ -114,7 +113,7 @@ script:
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
        minikube update-context
        minikube status
-       make VERSION="$VERSION" EXTRA_GO_FLAGS="$EXTRA_GO_FLAGS_TEST" integrationtest
+       make integrationtest
     fi
 
 after_script: set +e
@@ -132,7 +131,7 @@ deploy:
     secure: "T/LpWZSgeqWBgY3mUNeej55n8TbZZM7UgrHl7pej1CE2cs6YGcfyog3peiXvCcVF9NhGsm6eTXZQeFxsuWgMbWYeqlBnMkHNPPqdNpeRFgY0TkFZXHZLexfqTo2MLgrZiJ+bZl8wZnTTXukieGeLE37ugkBJyceLyfqIaxwRlpDzKPn8XtIqOMOwMq0aeUA8wjSSpuWkuwlGWKwJtI48BNExZZ1FRpPHQdAZjX6zEPT2SuRaACZdoX+3k/Fr91H6O9TplE4q5eCpEdd3y7BGGtMm3WA70SxYIZPGzfwaALGja5BapZr9Eui6ppyPGesQ8zV+zNtOsnK5Phj3QUj8M+v4BmJbxbPyhAIWmFiDlutgwZUkXI+R+SXONy1/LTuLLNSJ9WPQsC9gL09FGQmg+X0s7VpJVWxD8FScY0DJ4/bNLgeWnzwT2YTsduDktqevMpetxJWZGVQx3EN595JJKlZGtE8PouzVm7sRQEfe3Jd0XIcPfj5AV5trEBDjgHZSnU4qa9G9RdUZfswVp+R7SEwoTwEIEyOpFAwi9Qg5wkCAZFU2+86LQOLYH0Pm38//RxSXJEF1abkEb0Y/awz6KKlGBK3z1VSXvK3LQ8r9SwF2h15rD74O1mGM8Mjbs+mJXPxKpCq+BslskRYur3F8tRx45pwr8Ly9dppZd2rrswI="
   file: $EXE_NAME
   on:
-    condition: ( $TARGET = x86_64-linux-musl || $TRAVIS_OS_NAME = osx ) && ${TRAVIS_GO_VERSION}.0 =~ ^1\.8\.
+    condition: ( $TARGET = x86_64-linux-musl || $TRAVIS_OS_NAME = osx ) && ${TRAVIS_GO_VERSION}.0 =~ ^1\.9\.
     tags: true
   provider: releases
   skip_cleanup: true

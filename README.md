@@ -30,7 +30,8 @@ To build from source:
 % go get github.com/ksonnet/kubecfg
 ```
 
-Requires golang >=1.7 and a functional cgo environment (C++ with libstdc++).
+Tested against golang >=1.8 and requires a functional cgo environment
+(C++ with libstdc++).
 Note that recent OSX environments
 [require golang >=1.8.1](https://github.com/golang/go/issues/19734) to
 avoid an immediate `Killed: 9`.
