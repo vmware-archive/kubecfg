@@ -19,7 +19,7 @@ GO ?= go
 GO_FLAGS ?=
 GO_LDFLAGS ?=
 GO_TESTFLAGS ?= -race
-GO_BUILDFLAGS ?= -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
+GO_BUILDFLAGS ?= -tags netgo -installsuffix netgo -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
 GOFMT ?= gofmt
 # GINKGO = "go test" also works if you want to avoid ginkgo tool
 GINKGO ?= ginkgo
@@ -34,7 +34,7 @@ KUBECONFIG ?= $(HOME)/.kube/config
 all: kubecfg
 
 kubecfg:
-	$(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
+	CGO_ENABLED=0 $(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
 
 test: gotest jsonnettest
 
