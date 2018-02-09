@@ -27,9 +27,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	jsonnet "github.com/strickyak/jsonnet_cgo"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
@@ -166,13 +166,15 @@ func (f *logFormatter) Format(e *log.Entry) ([]byte, error) {
 // JsonnetVM constructs a new jsonnet.VM, according to command line
 // flags
 func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
-	vm := jsonnet.Make()
+	vm := jsonnet.MakeVM()
 	flags := cmd.Flags()
+
+	var searchPaths []string
 
 	jpath := os.Getenv("KUBECFG_JPATH")
 	for _, p := range filepath.SplitList(jpath) {
 		log.Debugln("Adding jsonnet search path", p)
-		vm.JpathAdd(p)
+		searchPaths = append(searchPaths, p)
 	}
 
 	jpath, err := flags.GetString(flagJpath)
@@ -181,8 +183,10 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 	}
 	for _, p := range filepath.SplitList(jpath) {
 		log.Debugln("Adding jsonnet search path", p)
-		vm.JpathAdd(p)
+		searchPaths = append(searchPaths, p)
 	}
+
+	vm.Importer(&jsonnet.FileImporter{JPaths: searchPaths})
 
 	extvars, err := flags.GetStringSlice(flagExtVar)
 	if err != nil {
@@ -229,12 +233,12 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		case 1:
 			v, present := os.LookupEnv(kv[0])
 			if present {
-				vm.TlaVar(kv[0], v)
+				vm.TLAVar(kv[0], v)
 			} else {
 				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
 			}
 		case 2:
-			vm.TlaVar(kv[0], kv[1])
+			vm.TLAVar(kv[0], kv[1])
 		}
 	}
 
@@ -251,7 +255,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		if err != nil {
 			return nil, err
 		}
-		vm.TlaVar(kv[0], string(v))
+		vm.TLAVar(kv[0], string(v))
 	}
 
 	resolver, err := buildResolver(cmd)
@@ -322,7 +326,6 @@ func readObjs(cmd *cobra.Command, paths []string) ([]*unstructured.Unstructured,
 	if err != nil {
 		return nil, err
 	}
-	defer vm.Destroy()
 
 	res := []*unstructured.Unstructured{}
 	for _, path := range paths {
