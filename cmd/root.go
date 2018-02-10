@@ -45,6 +45,7 @@ import (
 const (
 	flagVerbose    = "verbose"
 	flagJpath      = "jpath"
+	flagSUrl       = "surl"
 	flagExtVar     = "ext-str"
 	flagExtVarFile = "ext-str-file"
 	flagTlaVar     = "tla-str"
@@ -59,6 +60,7 @@ var overrides clientcmd.ConfigOverrides
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
 	RootCmd.PersistentFlags().StringP(flagJpath, "J", "", "Additional jsonnet library search path")
+	RootCmd.PersistentFlags().StringSliceP(flagSUrl, "U", nil, "Additional jsonnet library search path given as an URL")
 	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
 	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")
 	RootCmd.PersistentFlags().StringSliceP(flagTlaVar, "A", nil, "Values of top level arguments")
@@ -186,7 +188,26 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		searchPaths = append(searchPaths, p)
 	}
 
-	vm.Importer(&jsonnet.FileImporter{JPaths: searchPaths})
+	sURLs, err := flags.GetStringSlice(flagSUrl)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range sURLs {
+		log.Debugln("Adding jsonnet search path given as URL", u)
+		searchPaths = append(searchPaths, u)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	importer, err := utils.MakeUniversalImporter(wd, searchPaths)
+	if err != nil {
+		return nil, err
+	}
+
+	vm.Importer(importer)
 
 	extvars, err := flags.GetStringSlice(flagExtVar)
 	if err != nil {
