@@ -14,6 +14,7 @@ env:
   global:
     - PATH=$PATH:$GOPATH/bin
     - VERSION="${TRAVIS_TAG:-build-$TRAVIS_BUILD_ID}"
+    - GO_LDFLAGS="-w -s"
     - MINIKUBE_WANTUPDATENOTIFICATION=false
     - MINIKUBE_WANTREPORTERRORPROMPT=false
     - MINIKUBE_HOME=${HOME}
@@ -34,7 +35,6 @@ addons:
       - ca-certificates
 
 install:
-  - go build -i -ldflags "$GO_LDFLAGS" .
   - |
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
       if ! which minikube; then
@@ -74,7 +74,7 @@ before_deploy:
   - echo OS_NAME=$TRAVIS_OS_NAME GO_VERSION=$TRAVIS_GO_VERSION
   - EXE_NAME=kubecfg-$(go env GOOS)-$(go env GOARCH)
   - cp kubecfg $EXE_NAME
-  - strip $EXE_NAME && ./$EXE_NAME version
+  - ./$EXE_NAME version
   - >
     size $EXE_NAME || :
 
@@ -91,6 +91,8 @@ deploy:
 cache:
   directories:
     - $GOPATH/pkg
+    - $GOPATH/bin
+    - $HOME/.minikube/cache
 
 branches:
   only:
