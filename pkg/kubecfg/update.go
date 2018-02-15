@@ -17,11 +17,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/ksonnet/kubecfg/utils"
 )
 
 const (
+	// GcListModeClusterScope lists all the objects by making one single call.
+	// It behaves like kubectl get --all-namespaces.
+	// It can fail if the user doesn't have rights to fetch at the cluster level
+	// (i.e. if the user not in a clusterrolebinding).
+	GcListModeClusterScope = "cluster-scope"
+	// GcListModePerNamespace lists all the objects by making one specific call for each namespaces.
+	// This can be necessary if the user has only a rolebinding in a few namespaces,
+	// it can very slow on clusters with many namespaces.
+	// Cluster scope queries for resouces that only exist at the cluster level are still performed,
+	// so warning about permission errors are expected.
+	GcListModePerNamespace = "per-namespace"
+
 	// AnnotationGcTag annotation that triggers
 	// garbage collection. Objects with value equal to
 	// command-line flag that are *not* in config will be deleted.
@@ -42,12 +55,15 @@ const (
 type UpdateCmd struct {
 	ClientPool       dynamic.ClientPool
 	Discovery        discovery.DiscoveryInterface
+	CoreV1Client     v1.CoreV1Interface
 	DefaultNamespace string
 
-	Create bool
-	GcTag  string
-	SkipGc bool
-	DryRun bool
+	Create       bool
+	GcTag        string
+	GcListMode   string
+	GcNsSelector string
+	SkipGc       bool
+	DryRun       bool
 }
 
 func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
@@ -120,7 +136,8 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 			return err
 		}
 
-		err = walkObjects(c.ClientPool, c.Discovery, metav1.ListOptions{}, func(o runtime.Object) error {
+		nsListOptions := metav1.ListOptions{LabelSelector: c.GcNsSelector}
+		err = walkObjects(c.ClientPool, c.Discovery, c.CoreV1Client, c.GcListMode, metav1.ListOptions{}, nsListOptions, func(o runtime.Object) error {
 			meta, err := meta.Accessor(o)
 			if err != nil {
 				return err
@@ -196,11 +213,59 @@ func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface,
 	return nil
 }
 
-func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
+func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, core v1.CoreV1Interface, listMode string, listopts, nsListopts metav1.ListOptions, callback func(runtime.Object) error) error {
 	rsrclists, err := disco.ServerResources()
 	if err != nil {
 		return err
 	}
+
+	namespaceList, err := core.Namespaces().List(nsListopts)
+	if err != nil {
+		return err
+	}
+
+	var namespaces []string
+	switch listMode {
+	case GcListModeClusterScope:
+		namespaces = []string{metav1.NamespaceAll}
+	case GcListModePerNamespace:
+		for _, ns := range namespaceList.Items {
+			namespaces = append(namespaces, ns.GetName())
+		}
+	default:
+		return fmt.Errorf("unknown list mode %q", listMode)
+	}
+
+	// listResource lists all objects of a given resource.
+	// If the list operation is forbidden for a given resource in a given namespace it returns skip true,
+	// otherwise it invokes the callback for every found item.
+	listResource := func(ns string, gvk schema.GroupVersionKind, rsrc metav1.APIResource) (skip bool, err error) {
+		if !stringListContains(rsrc.Verbs, "list") {
+			log.Debugf("Don't know how to list %v, skipping", rsrc)
+			return false, nil
+		}
+		client, err := pool.ClientForGroupVersionKind(gvk)
+		if err != nil {
+			return false, err
+		}
+
+		rc := client.Resource(&rsrc, ns)
+		log.Debugf("Listing %s", gvk)
+		obj, err := rc.List(listopts)
+		if err != nil {
+			if errors.IsForbidden(err) {
+				log.Warningf("Cannot list %s objects in namespace %q", gvk, ns)
+				log.Debugf("Permission error: %v", err)
+				return true, err
+			}
+			return false, err
+		}
+		if err := meta.EachListItem(obj, callback); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+
 	for _, rsrclist := range rsrclists {
 		gv, err := schema.ParseGroupVersion(rsrclist.GroupVersion)
 		if err != nil {
@@ -209,30 +274,17 @@ func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, li
 		for _, rsrc := range rsrclist.APIResources {
 			gvk := gv.WithKind(rsrc.Kind)
 
-			if !stringListContains(rsrc.Verbs, "list") {
-				log.Debugf("Don't know how to list %v, skipping", rsrc)
-				continue
-			}
-			client, err := pool.ClientForGroupVersionKind(gvk)
-			if err != nil {
-				return err
-			}
-
-			var ns string
 			if rsrc.Namespaced {
-				ns = metav1.NamespaceAll
+				for _, ns := range namespaces {
+					log.Debugf("Namespace %q", ns)
+					if skip, err := listResource(ns, gvk, rsrc); err != nil && !skip {
+						return err
+					}
+				}
 			} else {
-				ns = metav1.NamespaceNone
-			}
-
-			rc := client.Resource(&rsrc, ns)
-			log.Debugf("Listing %s", gvk)
-			obj, err := rc.List(listopts)
-			if err != nil {
-				return err
-			}
-			if err = meta.EachListItem(obj, callback); err != nil {
-				return err
+				if skip, err := listResource(metav1.NamespaceNone, gvk, rsrc); err != nil && !skip {
+					return err
+				}
 			}
 		}
 	}

@@ -16,31 +16,21 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/ksonnet/kubecfg/pkg/kubecfg"
 )
 
 const (
-	flagCreate = "create"
-	flagSkipGc = "skip-gc"
-	flagGcTag  = "gc-tag"
-	flagDryRun = "dry-run"
-
-	// AnnotationGcTag annotation that triggers
-	// garbage collection. Objects with value equal to
-	// command-line flag that are *not* in config will be deleted.
-	AnnotationGcTag = "kubecfg.ksonnet.io/garbage-collect-tag"
-
-	// AnnotationGcStrategy controls gc logic.  Current values:
-	// `auto` (default if absent) - do garbage collection
-	// `ignore` - never garbage collect this object
-	AnnotationGcStrategy = "kubecfg.ksonnet.io/garbage-collect-strategy"
-
-	// GcStrategyAuto is the default automatic gc logic
-	GcStrategyAuto = "auto"
-	// GcStrategyIgnore means this object should be ignored by garbage collection
-	GcStrategyIgnore = "ignore"
+	flagCreate       = "create"
+	flagSkipGc       = "skip-gc"
+	flagGcTag        = "gc-tag"
+	flagGcListMode   = "gc-list-mode"
+	flagGcNsSelector = "gc-ns-selector"
+	flagDryRun       = "dry-run"
 )
 
 func init() {
@@ -48,6 +38,8 @@ func init() {
 	updateCmd.PersistentFlags().Bool(flagCreate, true, "Create missing resources")
 	updateCmd.PersistentFlags().Bool(flagSkipGc, false, "Don't perform garbage collection, even with --"+flagGcTag)
 	updateCmd.PersistentFlags().String(flagGcTag, "", "Add this tag to updated objects, and garbage collect existing objects with this tag and not in config")
+	updateCmd.PersistentFlags().String(flagGcListMode, kubecfg.GcListModeClusterScope, fmt.Sprintf("Selects the way the GC list all objects: %s,%s", kubecfg.GcListModeClusterScope, kubecfg.GcListModePerNamespace))
+	updateCmd.PersistentFlags().String(flagGcNsSelector, "", fmt.Sprintf("Use this label selector to filter namespaces. Implies %s=%s ", flagGcListMode, kubecfg.GcListModePerNamespace))
 	updateCmd.PersistentFlags().Bool(flagDryRun, false, "Perform only read-only operations")
 }
 
@@ -74,6 +66,19 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
+		c.GcListMode, err = flags.GetString(flagGcListMode)
+		if err != nil {
+			return err
+		}
+
+		c.GcNsSelector, err = flags.GetString(flagGcNsSelector)
+		if err != nil {
+			return err
+		}
+		if c.GcNsSelector != "" {
+			c.GcListMode = kubecfg.GcListModePerNamespace
+		}
+
 		c.DryRun, err = flags.GetBool(flagDryRun)
 		if err != nil {
 			return err
@@ -85,6 +90,16 @@ var updateCmd = &cobra.Command{
 		}
 
 		c.DefaultNamespace, err = defaultNamespace(clientConfig)
+		if err != nil {
+			return err
+		}
+
+		cc, err := clientConfig.ClientConfig()
+		if err != nil {
+			return err
+		}
+
+		c.CoreV1Client, err = v1.NewForConfig(cc)
 		if err != nil {
 			return err
 		}
