@@ -46,7 +46,7 @@ import (
 const (
 	flagVerbose    = "verbose"
 	flagJpath      = "jpath"
-	flagSUrl       = "surl"
+	flagJUrl       = "jurl"
 	flagExtVar     = "ext-str"
 	flagExtVarFile = "ext-str-file"
 	flagTlaVar     = "tla-str"
@@ -61,7 +61,7 @@ var overrides clientcmd.ConfigOverrides
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
 	RootCmd.PersistentFlags().StringP(flagJpath, "J", "", "Additional jsonnet library search path")
-	RootCmd.PersistentFlags().StringSliceP(flagSUrl, "U", nil, "Additional jsonnet library search path given as an URL")
+	RootCmd.PersistentFlags().StringSliceP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL")
 	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
 	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")
 	RootCmd.PersistentFlags().StringSliceP(flagTlaVar, "A", nil, "Values of top level arguments")
@@ -198,7 +198,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		}
 	}
 
-	sURLs, err := flags.GetStringSlice(flagSUrl)
+	sURLs, err := flags.GetStringSlice(flagJUrl)
 	if err != nil {
 		return nil, err
 	}
