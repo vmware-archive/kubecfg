@@ -207,6 +207,9 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		if err != nil {
 			return nil, err
 		}
+		if u.Path[len(u.Path)-1] != '/' {
+			u.Path = u.Path + "/"
+		}
 		searchUrls = append(searchUrls, u)
 	}
 
