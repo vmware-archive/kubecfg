@@ -171,22 +171,22 @@
 			"revisionTime": "2017-08-16T00:15:14Z"
 		},
 		{
-			"checksumSHA1": "n3Q/VKITvz2iOcqZ9UFG6LE67EY=",
+			"checksumSHA1": "NAmZv9H7LyKNu3KKoQc7beqUg0E=",
 			"path": "github.com/google/go-jsonnet",
-			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
-			"revisionTime": "2018-02-01T19:21:39Z"
+			"revision": "bed2cd89bc517714e591781928a856c29611422d",
+			"revisionTime": "2018-02-17T19:17:52Z"
 		},
 		{
-			"checksumSHA1": "UjLF8Vwca8pHJZovPq8tw64LK/0=",
+			"checksumSHA1": "l8detOFllmUMKl/FR8XeA45N5uI=",
 			"path": "github.com/google/go-jsonnet/ast",
-			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
-			"revisionTime": "2018-02-01T19:21:39Z"
+			"revision": "bed2cd89bc517714e591781928a856c29611422d",
+			"revisionTime": "2018-02-17T19:17:52Z"
 		},
 		{
-			"checksumSHA1": "bAHDsLfmK8DrAYw4hFaKtbhwruc=",
+			"checksumSHA1": "Rep/ahvPkiXb89h+WzJTm48zAYc=",
 			"path": "github.com/google/go-jsonnet/parser",
-			"revision": "f46dea2835bc4d5138d279753643c970250ef683",
-			"revisionTime": "2018-02-01T19:21:39Z"
+			"revision": "bed2cd89bc517714e591781928a856c29611422d",
+			"revisionTime": "2018-02-17T19:17:52Z"
 		},
 		{
 			"checksumSHA1": "fgPBEKvm7D7y4IMxGaxHsPmtYtU=",
