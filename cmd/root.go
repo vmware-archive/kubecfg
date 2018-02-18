@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -165,49 +166,55 @@ func (f *logFormatter) Format(e *log.Entry) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func dirURL(path string) *url.URL {
+	if path[len(path)-1] != filepath.Separator {
+		// trailing slash is important
+		path = path + string(filepath.Separator)
+	}
+	return &url.URL{Scheme: "file", Path: path}
+}
+
 // JsonnetVM constructs a new jsonnet.VM, according to command line
 // flags
 func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 	vm := jsonnet.MakeVM()
 	flags := cmd.Flags()
 
-	var searchPaths []string
+	var searchUrls []*url.URL
 
-	jpath := os.Getenv("KUBECFG_JPATH")
-	for _, p := range filepath.SplitList(jpath) {
-		log.Debugln("Adding jsonnet search path", p)
-		searchPaths = append(searchPaths, p)
-	}
+	jpathEnv := os.Getenv("KUBECFG_JPATH")
 
-	jpath, err := flags.GetString(flagJpath)
+	jpathArg, err := flags.GetString(flagJpath)
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range filepath.SplitList(jpath) {
-		log.Debugln("Adding jsonnet search path", p)
-		searchPaths = append(searchPaths, p)
+	for _, jpath := range []string{jpathEnv, jpathArg} {
+		for _, p := range filepath.SplitList(jpath) {
+			p, err := filepath.Abs(p)
+			if err != nil {
+				return nil, err
+			}
+			searchUrls = append(searchUrls, dirURL(p))
+		}
 	}
 
 	sURLs, err := flags.GetStringSlice(flagSUrl)
 	if err != nil {
 		return nil, err
 	}
-	for _, u := range sURLs {
-		log.Debugln("Adding jsonnet search path given as URL", u)
-		searchPaths = append(searchPaths, u)
+	for _, ustr := range sURLs {
+		u, err := url.Parse(ustr)
+		if err != nil {
+			return nil, err
+		}
+		searchUrls = append(searchUrls, u)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
+	for _, u := range searchUrls {
+		log.Debugln("Jsonnet search path:", u)
 	}
 
-	importer, err := utils.MakeUniversalImporter(wd, searchPaths)
-	if err != nil {
-		return nil, err
-	}
-
-	vm.Importer(importer)
+	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
 	extvars, err := flags.GetStringSlice(flagExtVar)
 	if err != nil {
