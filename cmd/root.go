@@ -61,11 +61,14 @@ var overrides clientcmd.ConfigOverrides
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
 	RootCmd.PersistentFlags().StringP(flagJpath, "J", "", "Additional jsonnet library search path")
+	RootCmd.MarkPersistentFlagFilename(flagJpath)
 	RootCmd.PersistentFlags().StringSliceP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL")
 	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
 	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")
+	RootCmd.MarkPersistentFlagFilename(flagExtVarFile)
 	RootCmd.PersistentFlags().StringSliceP(flagTlaVar, "A", nil, "Values of top level arguments")
 	RootCmd.PersistentFlags().StringSlice(flagTlaVarFile, nil, "Read top level argument from a file")
+	RootCmd.MarkPersistentFlagFilename(flagTlaVarFile)
 	RootCmd.PersistentFlags().String(flagResolver, "noop", "Change implementation of resolveImage native function. One of: noop, registry")
 	RootCmd.PersistentFlags().String(flagResolvFail, "warn", "Action when resolveImage fails. One of ignore,warn,error")
 
@@ -74,6 +77,7 @@ func init() {
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
 	RootCmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	RootCmd.MarkPersistentFlagFilename("kubeconfig")
 	clientcmd.BindOverrideFlags(&overrides, RootCmd.PersistentFlags(), kflags)
 	clientConfig = clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 

@@ -33,6 +33,7 @@ func init() {
 var showCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show expanded resource definitions",
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flags := cmd.Flags()
 		var err error
