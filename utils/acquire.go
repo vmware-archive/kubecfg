@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -126,11 +127,20 @@ func jsonWalk(obj interface{}) ([]interface{}, error) {
 }
 
 func jsonnetReader(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
+	// TODO: Read via Importer, so we support HTTP, etc for first
+	// file too.
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	pathUrl := &url.URL{Scheme: "file", Path: abs}
+
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	jsonstr, err := vm.EvaluateSnippet(path, string(bytes))
+
+	jsonstr, err := vm.EvaluateSnippet(pathUrl.String(), string(bytes))
 	if err != nil {
 		return nil, err
 	}
