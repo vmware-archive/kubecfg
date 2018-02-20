@@ -31,6 +31,7 @@ func init() {
 var diffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "Display differences between server and local config",
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flags := cmd.Flags()
 		var err error

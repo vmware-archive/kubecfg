@@ -33,6 +33,7 @@ func init() {
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete Kubernetes resources described in local config",
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flags := cmd.Flags()
 		var err error
