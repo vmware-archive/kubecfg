@@ -20,7 +20,9 @@ import (
 	"io"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 
 	"github.com/ksonnet/kubecfg/utils"
@@ -28,19 +30,49 @@ import (
 
 // ValidateCmd represents the validate subcommand
 type ValidateCmd struct {
-	Discovery discovery.DiscoveryInterface
+	Discovery     discovery.DiscoveryInterface
+	IgnoreUnknown bool
+}
+
+// newGroupVersionChecker returns a predicate that returns true if the group version is known to the server.
+func newGroupVersionChecker(d discovery.ServerGroupsInterface) (func(schema.GroupVersion) bool, error) {
+	groupList, err := d.ServerGroups()
+	if err != nil {
+		return nil, err
+	}
+	groupVersions := v1.ExtractGroupVersions(groupList)
+
+	return func(gv schema.GroupVersion) bool {
+		for _, v := range groupVersions {
+			if v == gv.String() {
+				return true
+			}
+		}
+		return false
+	}, nil
 }
 
 func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
+	isGroupVersionKnown, err := newGroupVersionChecker(c.Discovery)
+	if err != nil {
+		return err
+	}
+
 	hasError := false
 
 	for _, obj := range apiObjects {
 		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
 		log.Info("Validating ", desc)
 
+		gv := obj.GroupVersionKind().GroupVersion()
+		if c.IgnoreUnknown && !isGroupVersionKnown(gv) {
+			log.Warnf("Skipping validation of %s because schema for %s is unknown", desc, gv)
+			continue
+		}
+
 		var allErrs []error
 
-		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, obj.GroupVersionKind().GroupVersion())
+		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, gv)
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("Unable to fetch schema: %v", err))
 		} else {
