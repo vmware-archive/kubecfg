@@ -26,21 +26,6 @@ const (
 	flagSkipGc = "skip-gc"
 	flagGcTag  = "gc-tag"
 	flagDryRun = "dry-run"
-
-	// AnnotationGcTag annotation that triggers
-	// garbage collection. Objects with value equal to
-	// command-line flag that are *not* in config will be deleted.
-	AnnotationGcTag = "kubecfg.ksonnet.io/garbage-collect-tag"
-
-	// AnnotationGcStrategy controls gc logic.  Current values:
-	// `auto` (default if absent) - do garbage collection
-	// `ignore` - never garbage collect this object
-	AnnotationGcStrategy = "kubecfg.ksonnet.io/garbage-collect-strategy"
-
-	// GcStrategyAuto is the default automatic gc logic
-	GcStrategyAuto = "auto"
-	// GcStrategyIgnore means this object should be ignored by garbage collection
-	GcStrategyIgnore = "ignore"
 )
 
 func init() {
