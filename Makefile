@@ -22,7 +22,7 @@ GO_TESTFLAGS ?= -race
 GO_BUILDFLAGS ?= -tags netgo -installsuffix netgo -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
 GOFMT ?= gofmt
 # GINKGO = "go test" also works if you want to avoid ginkgo tool
-GINKGO ?= ginkgo
+GINKGO ?= ginkgo -p
 
 JSONNET_FILES = lib/kubecfg_test.jsonnet examples/guestbook.jsonnet
 # TODO: Simplify this once ./... ignores ./vendor
