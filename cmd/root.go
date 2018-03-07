@@ -60,9 +60,9 @@ var overrides clientcmd.ConfigOverrides
 
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
-	RootCmd.PersistentFlags().StringP(flagJpath, "J", "", "Additional jsonnet library search path")
+	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional jsonnet library search path. May be repeated.")
 	RootCmd.MarkPersistentFlagFilename(flagJpath)
-	RootCmd.PersistentFlags().StringSliceP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL")
+	RootCmd.PersistentFlags().StringArrayP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL. May be repeated.")
 	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
 	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")
 	RootCmd.MarkPersistentFlagFilename(flagExtVarFile)
@@ -186,23 +186,23 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 
 	var searchUrls []*url.URL
 
-	jpathEnv := os.Getenv("KUBECFG_JPATH")
+	jpath := filepath.SplitList(os.Getenv("KUBECFG_JPATH"))
 
-	jpathArg, err := flags.GetString(flagJpath)
+	jpathArgs, err := flags.GetStringArray(flagJpath)
 	if err != nil {
 		return nil, err
 	}
-	for _, jpath := range []string{jpathEnv, jpathArg} {
-		for _, p := range filepath.SplitList(jpath) {
-			p, err := filepath.Abs(p)
-			if err != nil {
-				return nil, err
-			}
-			searchUrls = append(searchUrls, dirURL(p))
+	jpath = append(jpath, jpathArgs...)
+
+	for _, p := range jpath {
+		p, err := filepath.Abs(p)
+		if err != nil {
+			return nil, err
 		}
+		searchUrls = append(searchUrls, dirURL(p))
 	}
 
-	sURLs, err := flags.GetStringSlice(flagJUrl)
+	sURLs, err := flags.GetStringArray(flagJUrl)
 	if err != nil {
 		return nil, err
 	}
