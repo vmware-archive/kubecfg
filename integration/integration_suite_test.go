@@ -12,11 +12,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apimachinery/registered"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -25,16 +27,13 @@ import (
 
 	// For client auth plugins
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	// For apimachinery serialisation magic
-	_ "k8s.io/client-go/pkg/api/install"
 )
 
 var kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 var kubecfgBin = flag.String("kubecfg-bin", "kubecfg", "path to kubecfg executable under test")
 
 func init() {
-	if missingVersions := api.Registry.ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
+	if missingVersions := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS")).ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
 		panic(fmt.Sprintf("KUBE_API_VERSIONS contains versions that are not installed: %q.", missingVersions))
 	}
 }
@@ -99,7 +98,7 @@ func runKubecfgWith(flags []string, input []runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	enc := api.Codecs.LegacyCodec(v1.SchemeGroupVersion)
+	enc := serializer.NewCodecFactory(scheme.Scheme).LegacyCodec(v1.SchemeGroupVersion)
 	if err := encodeTo(f, enc, input); err != nil {
 		return err
 	}
