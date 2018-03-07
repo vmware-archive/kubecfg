@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 
 	"github.com/ksonnet/kubecfg/utils"
@@ -40,15 +41,14 @@ func newGroupVersionChecker(d discovery.ServerGroupsInterface) (func(schema.Grou
 	if err != nil {
 		return nil, err
 	}
-	groupVersions := v1.ExtractGroupVersions(groupList)
 
+	groupVersions := sets.NewString()
+	for _, gv := range v1.ExtractGroupVersions(groupList) {
+		groupVersions.Insert(gv.String())
+	}
+	
 	return func(gv schema.GroupVersion) bool {
-		for _, v := range groupVersions {
-			if v == gv.String() {
-				return true
-			}
-		}
-		return false
+		return groupVersions.Has(gv.String())
 	}, nil
 }
 
