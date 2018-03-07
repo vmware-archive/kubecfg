@@ -1,3 +1,5 @@
+// +build integration
+
 package integration
 
 import (
@@ -11,12 +13,10 @@ import (
 	"testing"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apimachinery/announced"
 	"k8s.io/apimachinery/pkg/apimachinery/registered"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,11 +32,9 @@ var kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig 
 var kubecfgBin = flag.String("kubecfg-bin", "kubecfg", "path to kubecfg executable under test")
 
 func init() {
-	registry := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS"))
-	if missingVersions := registry.ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
+	if missingVersions := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS")).ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
 		panic(fmt.Sprintf("KUBE_API_VERSIONS contains versions that are not installed: %q.", missingVersions))
 	}
-	Install(make(announced.APIGroupFactoryRegistry), registry, runtime.NewScheme())
 }
 
 func clusterConfigOrDie() *rest.Config {
@@ -144,41 +142,4 @@ func encodeTo(w io.Writer, enc runtime.Encoder, objs []runtime.Object) error {
 func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "kubecfg integration tests")
-}
-
-// Install registers the API group and adds types to a scheme
-func Install(groupFactoryRegistry announced.APIGroupFactoryRegistry, registry *registered.APIRegistrationManager, scheme *runtime.Scheme) {
-	if err := announced.NewGroupMetaFactory(
-		&announced.GroupMetaFactoryArgs{
-			GroupName:                  v1.GroupName,
-			VersionPreferenceOrder:     []string{v1.SchemeGroupVersion.Version},
-			AddInternalObjectsToScheme: v1.AddToScheme,
-			RootScopedKinds: sets.NewString(
-				"Node",
-				"Namespace",
-				"PersistentVolume",
-				"ComponentStatus",
-			),
-			IgnoredKinds: sets.NewString(
-				"ListOptions",
-				"DeleteOptions",
-				"Status",
-				"PodLogOptions",
-				"PodExecOptions",
-				"PodAttachOptions",
-				"PodPortForwardOptions",
-				"PodProxyOptions",
-				"NodeProxyOptions",
-				"ServiceProxyOptions",
-				"ThirdPartyResource",
-				"ThirdPartyResourceData",
-				"ThirdPartyResourceList",
-			),
-		},
-		announced.VersionToSchemeFunc{
-			v1.SchemeGroupVersion.Version: v1.AddToScheme,
-		},
-	).Announce(groupFactoryRegistry).RegisterAndEnable(registry, scheme); err != nil {
-		panic(err)
-	}
 }
