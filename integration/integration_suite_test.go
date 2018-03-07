@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -97,7 +98,7 @@ func runKubecfgWith(flags []string, input []runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	enc := serializer.NewCodecFactory(runtime.NewScheme()).LegacyCodec(v1.SchemeGroupVersion)
+	enc := serializer.NewCodecFactory(scheme.Scheme).LegacyCodec(v1.SchemeGroupVersion)
 	if err := encodeTo(f, enc, input); err != nil {
 		return err
 	}
