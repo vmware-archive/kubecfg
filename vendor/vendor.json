@@ -57,6 +57,18 @@
 			"revisionTime": "2017-10-19T21:57:19Z"
 		},
 		{
+			"checksumSHA1": "2Fe4D6PGaVE2he4fUeenLmhC1lE=",
+			"path": "github.com/docker/distribution/reference",
+			"revision": "ce936a85915a55418ea62dc32a0a1274f2740104",
+			"revisionTime": "2017-05-05T18:45:43Z"
+		},
+		{
+			"checksumSHA1": "7DxViusFRJ7UPH0jZqYatwDrOkY=",
+			"path": "github.com/elazarl/go-bindata-assetfs",
+			"revision": "38087fe4dafb822e541b3f7955075cc1c30bd294",
+			"revisionTime": "2018-02-23T16:03:09Z"
+		},
+		{
 			"checksumSHA1": "95WQb+qcV7gHpUvZymh7TssLh1Q=",
 			"path": "github.com/emicklei/go-restful",
 			"revision": "ff4f55a206334ef123e4f79bbf348980da81ca46",

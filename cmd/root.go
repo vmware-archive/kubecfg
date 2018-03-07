@@ -206,6 +206,10 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Special URL scheme used to find embedded content
+	sURLs = append(sURLs, "internal:///")
+
 	for _, ustr := range sURLs {
 		u, err := url.Parse(ustr)
 		if err != nil {

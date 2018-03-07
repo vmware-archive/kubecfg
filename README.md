@@ -33,10 +33,6 @@ To build from source:
 ## Quickstart
 
 ```console
-# Include <kubecfg.git>/lib in kubecfg/jsonnet library search path.
-# Can also use explicit `-J` args everywhere.
-% export KUBECFG_JPATH=/path/to/kubecfg/lib
-
 # Show generated YAML
 % kubecfg show -o yaml examples/guestbook.jsonnet
 
