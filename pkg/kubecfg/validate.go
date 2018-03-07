@@ -35,28 +35,12 @@ type ValidateCmd struct {
 	IgnoreUnknown bool
 }
 
-// newGroupVersionChecker returns a predicate that returns true if the group version is known to the server.
-func newGroupVersionChecker(d discovery.ServerGroupsInterface) (func(schema.GroupVersion) bool, error) {
-	groupList, err := d.ServerGroups()
-	if err != nil {
-		return nil, err
-	}
-
-	groupVersions := sets.NewString()
-	for _, gv := range v1.ExtractGroupVersions(groupList) {
-		groupVersions.Insert(gv.String())
-	}
-	
-	return func(gv schema.GroupVersion) bool {
-		return groupVersions.Has(gv.String())
-	}, nil
-}
-
 func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
-	isGroupVersionKnown, err := newGroupVersionChecker(c.Discovery)
+	groupList, err := c.Discovery.ServerGroups()
 	if err != nil {
 		return err
 	}
+	groupVersions := sets.NewString(v1.ExtractGroupVersions(groupList))
 
 	hasError := false
 
@@ -65,7 +49,7 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 		log.Info("Validating ", desc)
 
 		gv := obj.GroupVersionKind().GroupVersion()
-		if c.IgnoreUnknown && !isGroupVersionKnown(gv) {
+		if c.IgnoreUnknown && !groupVersions.Has(gv.String()) {
 			log.Warnf("Skipping validation of %s because schema for %s is unknown", desc, gv)
 			continue
 		}
