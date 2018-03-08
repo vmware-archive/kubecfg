@@ -20,7 +20,7 @@ import (
 	"io"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
@@ -30,33 +30,40 @@ import (
 
 // ValidateCmd represents the validate subcommand
 type ValidateCmd struct {
-	Discovery     discovery.DiscoveryInterface
-	IgnoreUnknown bool
+	Discovery discovery.DiscoveryInterface
 }
 
 func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
-	groupList, err := c.Discovery.ServerGroups()
+	knownResources := map[string]sets.String{}
+
+	serverResourceList, err := c.Discovery.ServerResources()
 	if err != nil {
 		return err
 	}
-	groupVersions := sets.NewString(v1.ExtractGroupVersions(groupList)...)
+	for _, rl := range serverResourceList {
+		knownResources[rl.GroupVersion] = sets.String{}
+		for _, r := range rl.APIResources {
+			knownResources[rl.GroupVersion][r.Name] = sets.Empty{}
+		}
+	}
 
 	hasError := false
 
 	for _, obj := range apiObjects {
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
+		resName := utils.ResourceNameFor(c.Discovery, obj)
+		desc := fmt.Sprintf("%s %s", resName, utils.FqName(obj))
 		log.Info("Validating ", desc)
 
 		gv := obj.GroupVersionKind().GroupVersion()
-		if c.IgnoreUnknown && !groupVersions.Has(gv.String()) {
-			log.Warnf("Skipping validation of %s because schema for %s is unknown", desc, gv)
-			continue
-		}
 
 		var allErrs []error
 
 		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, gv)
 		if err != nil {
+			if _, known := knownResources[gv.String()][resName]; errors.IsNotFound(err) && known {
+				log.Warnf("Skipping validation of known resource %s %s that lacks a registered schema", gv, resName)
+				continue
+			}
 			allErrs = append(allErrs, fmt.Errorf("Unable to fetch schema: %v", err))
 		} else {
 			// Validate obj
