@@ -387,7 +387,7 @@ func dumpJSON(v interface{}) string {
 func restClientPool(cmd *cobra.Command) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
 	conf, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Unable to read kubectl config: %v", err)
 	}
 
 	disco, err := discovery.NewDiscoveryClientForConfig(conf)
