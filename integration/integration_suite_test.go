@@ -86,6 +86,10 @@ func containsString(haystack []string, needle string) bool {
 }
 
 func runKubecfgWith(flags []string, input []runtime.Object) error {
+	return runKubecfgWithOutput(flags, input, GinkgoWriter)
+}
+
+func runKubecfgWithOutput(flags []string, input []runtime.Object, output io.Writer) error {
 	tmpdir, err := ioutil.TempDir("", "kubecfg-testdata")
 	if err != nil {
 		return err
@@ -115,10 +119,12 @@ func runKubecfgWith(flags []string, input []runtime.Object) error {
 
 	fmt.Fprintf(GinkgoWriter, "Running %q %q\n", *kubecfgBin, args)
 	cmd := exec.Command(*kubecfgBin, args...)
-	cmd.Stdout = GinkgoWriter
-	cmd.Stderr = GinkgoWriter
+	cmd.Stdout = output
+	cmd.Stderr = output
 
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	fmt.Fprint(GinkgoWriter, output)
+	if err != nil {
 		return err
 	}
 

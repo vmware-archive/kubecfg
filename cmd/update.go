@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	flagCreate = "create"
-	flagSkipGc = "skip-gc"
-	flagGcTag  = "gc-tag"
-	flagDryRun = "dry-run"
+	flagCreate   = "create"
+	flagSkipGc   = "skip-gc"
+	flagGcTag    = "gc-tag"
+	flagDryRun   = "dry-run"
+	flagValidate = "validate"
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 	updateCmd.PersistentFlags().Bool(flagSkipGc, false, "Don't perform garbage collection, even with --"+flagGcTag)
 	updateCmd.PersistentFlags().String(flagGcTag, "", "Add this tag to updated objects, and garbage collect existing objects with this tag and not in config")
 	updateCmd.PersistentFlags().Bool(flagDryRun, false, "Perform only read-only operations")
+	updateCmd.PersistentFlags().Bool(flagValidate, true, "Validate input against server schema")
 }
 
 var updateCmd = &cobra.Command{
@@ -44,6 +46,11 @@ var updateCmd = &cobra.Command{
 		flags := cmd.Flags()
 		var err error
 		c := kubecfg.UpdateCmd{}
+
+		validate, err := flags.GetBool(flagValidate)
+		if err != nil {
+			return err
+		}
 
 		c.Create, err = flags.GetBool(flagCreate)
 		if err != nil {
@@ -78,6 +85,15 @@ var updateCmd = &cobra.Command{
 		objs, err := readObjs(cmd, args)
 		if err != nil {
 			return err
+		}
+
+		if validate {
+			v := kubecfg.ValidateCmd{
+				Discovery: c.Discovery,
+			}
+			if err := v.Run(objs, cmd.OutOrStdout()); err != nil {
+				return err
+			}
 		}
 
 		return c.Run(objs)

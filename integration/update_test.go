@@ -3,9 +3,12 @@
 package integration
 
 import (
+	"bytes"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -56,6 +59,56 @@ var _ = Describe("update", func() {
 	})
 	AfterEach(func() {
 		deleteNsOrDie(c, ns)
+	})
+
+	Describe("An erroneous update", func() {
+		var obj *unstructured.Unstructured
+		var kubecfgErr error
+		var kubecfgOut *bytes.Buffer
+		BeforeEach(func() {
+			obj = &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"metadata": map[string]interface{}{
+						"name": cmName,
+					},
+					"data": map[string]string{
+						"foo": "bar",
+					},
+				},
+			}
+			kubecfgOut = &bytes.Buffer{}
+		})
+
+		JustBeforeEach(func() {
+			kubecfgErr = runKubecfgWithOutput([]string{"update", "-vv", "-n", ns}, []runtime.Object{obj}, kubecfgOut)
+		})
+
+		Context("With invalid kind", func() {
+			BeforeEach(func() {
+				obj.SetKind("CanfogMop")
+			})
+			It("Should fail with a useful error", func() {
+				Expect(kubecfgErr).To(HaveOccurred())
+				Expect(kubecfgOut.String()).
+					To(ContainSubstring("couldn't find type: v1.CanfogMop"))
+			})
+		})
+
+		Context("With superfluous json", func() {
+			// NB: This would normally be silently ignored
+			// by the apiserver, without explicit
+			// client-side schema validation.
+			BeforeEach(func() {
+				obj.Object["extrakey"] = "extravalue"
+			})
+			It("Should fail with a useful error", func() {
+				Expect(kubecfgErr).To(HaveOccurred())
+				Expect(kubecfgOut.String()).
+					To(ContainSubstring("invalid field extrakey"))
+			})
+		})
 	})
 
 	Describe("A simple update", func() {
