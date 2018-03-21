@@ -19,6 +19,7 @@ env:
     - MINIKUBE_WANTREPORTERRORPROMPT=false
     - MINIKUBE_HOME=${HOME}
     - CHANGE_MINIKUBE_NONE_USER=true
+    - GINKGO_FLAGS="--randomizeAllSpecs --randomizeSuites --failOnPending --trace --race --progress --compilers=2 --nodes=2"
 
 matrix:
   include:
@@ -65,7 +66,7 @@ script:
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
        minikube update-context
        minikube status
-       make integrationtest
+       make integrationtest GINKGO="ginkgo $GINKGOFLAGS"
     fi
 
 after_script: set +e
