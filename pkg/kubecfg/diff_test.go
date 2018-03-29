@@ -90,6 +90,13 @@ func TestRemoveFields(t *testing.T) {
 			live:     map[string]interface{}{"foo": "bar"},
 			expected: map[string]interface{}{"foo": "bar"},
 		},
+		// JSON unmarshalling can return int64 for numbers
+		// https://golang.org/pkg/encoding/json/#Number
+		{
+			config:   map[string]interface{}{"foo": (int64)(10)},
+			live:     map[string]interface{}{},
+			expected: map[string]interface{}{},
+		},
 
 		// Check we can handle embedded lists.
 		{
