@@ -31,7 +31,8 @@ import (
 
 // ValidateCmd represents the validate subcommand
 type ValidateCmd struct {
-	Discovery discovery.DiscoveryInterface
+	Discovery     discovery.DiscoveryInterface
+	IgnoreUnknown bool
 }
 
 func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
@@ -67,7 +68,7 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 
 		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, gv)
 		if err != nil {
-			if errors.IsNotFound(err) && gvkExists(gvk) {
+			if errors.IsNotFound(err) && (c.IgnoreUnknown || gvkExists(gvk)) {
 				log.Infof(" No schema found for %s, skipping validation", gvk)
 				continue
 			}

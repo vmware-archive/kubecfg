@@ -36,6 +36,7 @@ func init() {
 	updateCmd.PersistentFlags().String(flagGcTag, "", "Add this tag to updated objects, and garbage collect existing objects with this tag and not in config")
 	updateCmd.PersistentFlags().Bool(flagDryRun, false, "Perform only read-only operations")
 	updateCmd.PersistentFlags().Bool(flagValidate, true, "Validate input against server schema")
+	updateCmd.PersistentFlags().Bool(flagIgnoreUnknown, false, "Don't fail validation if the schema for a given resource type is not found")
 }
 
 var updateCmd = &cobra.Command{
@@ -91,6 +92,12 @@ var updateCmd = &cobra.Command{
 			v := kubecfg.ValidateCmd{
 				Discovery: c.Discovery,
 			}
+
+			v.IgnoreUnknown, err = flags.GetBool(flagIgnoreUnknown)
+			if err != nil {
+				return err
+			}
+
 			if err := v.Run(objs, cmd.OutOrStdout()); err != nil {
 				return err
 			}
