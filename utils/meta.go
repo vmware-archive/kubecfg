@@ -44,6 +44,11 @@ func ParseVersion(v *version.Info) (ServerVersion, error) {
 	var ret ServerVersion
 	var err error
 	ret.Major, err = strconv.Atoi(v.Major)
+	if err != nil {
+		// Try to parse using GitVersion
+		return parseGitVersion(v.GitVersion)
+	}
+
 	// trim "+" in minor version (happened on GKE)
 	v.Minor = strings.TrimSuffix(v.Minor, "+")
 	ret.Minor, err = strconv.Atoi(v.Minor)
