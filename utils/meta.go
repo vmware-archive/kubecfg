@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -18,21 +19,39 @@ type ServerVersion struct {
 	Minor int
 }
 
-// ParseVersion parses version.Info into a ServerVersion struct
-func ParseVersion(v *version.Info) (ret ServerVersion, err error) {
-	ret.Major, err = strconv.Atoi(v.Major)
-	if err != nil {
-		return
+func parseGitVersion(gitVersion string) (ServerVersion, error) {
+	// Format v0.0.0(-master+$Format:%h$)
+	re := regexp.MustCompile("v([0-9])+.([0-9])+.[0-9]+-?.*")
+	parsedVersion := re.FindStringSubmatch(gitVersion)
+	if len(parsedVersion) != 3 {
+		return ServerVersion{}, fmt.Errorf("Unable to parse git version %s", gitVersion)
 	}
+	var ret ServerVersion
+	var err error
+	ret.Major, err = strconv.Atoi(parsedVersion[1])
+	if err != nil {
+		return ServerVersion{}, err
+	}
+	ret.Minor, err = strconv.Atoi(parsedVersion[2])
+	if err != nil {
+		return ServerVersion{}, err
+	}
+	return ret, nil
+}
 
+// ParseVersion parses version.Info into a ServerVersion struct
+func ParseVersion(v *version.Info) (ServerVersion, error) {
+	var ret ServerVersion
+	var err error
+	ret.Major, err = strconv.Atoi(v.Major)
 	// trim "+" in minor version (happened on GKE)
 	v.Minor = strings.TrimSuffix(v.Minor, "+")
-
 	ret.Minor, err = strconv.Atoi(v.Minor)
 	if err != nil {
-		return
+		// Try to parse using GitVersion
+		return parseGitVersion(v.GitVersion)
 	}
-	return
+	return ret, err
 }
 
 // FetchVersion fetches version information from discovery client, and parses
@@ -42,6 +61,11 @@ func FetchVersion(v discovery.ServerVersionInterface) (ret ServerVersion, err er
 		return ServerVersion{}, err
 	}
 	return ParseVersion(version)
+}
+
+// GetDefaultVersion returns a default server version (1.8)
+func GetDefaultVersion() ServerVersion {
+	return ServerVersion{Major: 1, Minor: 8}
 }
 
 // Compare returns -1/0/+1 iff v is less than / equal / greater than major.minor

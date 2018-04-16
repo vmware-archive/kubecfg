@@ -33,6 +33,22 @@ func TestParseVersion(t *testing.T) {
 			input:    version.Info{Major: "1", Minor: "8+"},
 			expected: ServerVersion{Major: 1, Minor: 8},
 		},
+		{
+			input:    version.Info{Major: "", Minor: "", GitVersion: "v1.8.0"},
+			expected: ServerVersion{Major: 1, Minor: 8},
+		},
+		{
+			input:    version.Info{Major: "", Minor: "", GitVersion: "v1.8.8-test.0"},
+			expected: ServerVersion{Major: 1, Minor: 8},
+		},
+		{
+			input:    version.Info{Major: "1", Minor: "8", GitVersion: "v1.9.0"},
+			expected: ServerVersion{Major: 1, Minor: 8},
+		},
+		{
+			input: version.Info{Major: "", Minor: "", GitVersion: "v1.a"},
+			error: true,
+		},
 	}
 
 	for _, test := range tests {
