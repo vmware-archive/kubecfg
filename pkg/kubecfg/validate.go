@@ -18,6 +18,7 @@ package kubecfg
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -68,14 +69,23 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 
 		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, gv)
 		if err != nil {
-			if errors.IsNotFound(err) && (c.IgnoreUnknown || gvkExists(gvk)) {
+			isNotFound := errors.IsNotFound(err) ||
+				strings.Contains(err.Error(), "is not supported by the server")
+			if isNotFound && (c.IgnoreUnknown || gvkExists(gvk)) {
 				log.Infof(" No schema found for %s, skipping validation", gvk)
 				continue
 			}
 			allErrs = append(allErrs, fmt.Errorf("Unable to fetch schema: %v", err))
 		} else {
 			// Validate obj
-			allErrs = append(allErrs, schema.Validate(obj)...)
+			for _, err := range schema.Validate(obj) {
+				_, isNotFound := err.(utils.TypeNotFoundError)
+				if isNotFound && (c.IgnoreUnknown || gvkExists(gvk)) {
+					log.Infof(" Found apiGroup, but it did not contain a schema for %s, ignoring", gvk)
+					continue
+				}
+				allErrs = append(allErrs, err)
+			}
 		}
 
 		for _, err := range allErrs {
