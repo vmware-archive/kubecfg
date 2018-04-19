@@ -13,6 +13,9 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
+// Format v0.0.0(-master+$Format:%h$)
+var gitVersionRe = regexp.MustCompile("v([0-9])+.([0-9])+.[0-9]+.*")
+
 // ServerVersion captures k8s major.minor version in a parsed form
 type ServerVersion struct {
 	Major int
@@ -20,9 +23,7 @@ type ServerVersion struct {
 }
 
 func parseGitVersion(gitVersion string) (ServerVersion, error) {
-	// Format v0.0.0(-master+$Format:%h$)
-	re := regexp.MustCompile("v([0-9])+.([0-9])+.[0-9]+-?.*")
-	parsedVersion := re.FindStringSubmatch(gitVersion)
+	parsedVersion := gitVersionRe.FindStringSubmatch(gitVersion)
 	if len(parsedVersion) != 3 {
 		return ServerVersion{}, fmt.Errorf("Unable to parse git version %s", gitVersion)
 	}
@@ -68,7 +69,9 @@ func FetchVersion(v discovery.ServerVersionInterface) (ret ServerVersion, err er
 	return ParseVersion(version)
 }
 
-// GetDefaultVersion returns a default server version (1.8)
+// GetDefaultVersion returns a default server version. This value will be updated
+// periodically to match a current/popular version corresponding to the age of this code
+// Current default version: 1.8
 func GetDefaultVersion() ServerVersion {
 	return ServerVersion{Major: 1, Minor: 8}
 }
