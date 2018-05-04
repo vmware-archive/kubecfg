@@ -36,14 +36,25 @@ func TestEligibleForGc(t *testing.T) {
 		t.Errorf("%v should not be eligible (no tag)", o)
 	}
 
+	// [gctag-migration]: Remove annotation in phase2
 	utils.SetMetaDataAnnotation(o, AnnotationGcTag, "unknowntag")
+	utils.SetMetaDataLabel(o, LabelGcTag, "unknowntag")
 	if eligibleForGc(o, myTag) {
 		t.Errorf("%v should not be eligible (wrong tag)", o)
 	}
 
+	// [gctag-migration]: Remove annotation in phase2
 	utils.SetMetaDataAnnotation(o, AnnotationGcTag, myTag)
+	utils.SetMetaDataLabel(o, LabelGcTag, myTag)
 	if !eligibleForGc(o, myTag) {
 		t.Errorf("%v should be eligible", o)
+	}
+
+	// [gctag-migration]: Remove testcase in phase2
+	utils.SetMetaDataAnnotation(o, AnnotationGcTag, myTag)
+	delete(o.GetLabels(), LabelGcTag) // no label. ie: pre-migration
+	if !eligibleForGc(o, myTag) {
+		t.Errorf("%v should be eligible (gctag-migration phase1)", o)
 	}
 
 	utils.SetMetaDataAnnotation(o, AnnotationGcStrategy, GcStrategyIgnore)
