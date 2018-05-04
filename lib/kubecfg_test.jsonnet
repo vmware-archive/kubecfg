@@ -16,58 +16,72 @@
 // Run me with `../kubecfg show kubecfg_test.jsonnet`
 local kubecfg = import "kubecfg.libsonnet";
 
-assert kubecfg.parseJson("[3, 4]") == [3, 4];
+local result =
 
-local x = kubecfg.parseYaml("---
-- 3
-- 4
----
-foo: bar
-baz: xyzzy
-");
-assert x == [[3, 4], {foo: "bar", baz: "xyzzy"}] : "got " + x;
+std.assertEqual(kubecfg.parseJson("[3, 4]"), [3, 4]) &&
 
-local x = kubecfg.manifestJson({foo: "bar", baz: [3, 4]});
-assert x == '{
-    "baz": [
-        3,
-        4
-    ],
-    "foo": "bar"
-}
-' : "got " + x;
+std.assertEqual(kubecfg.parseYaml(|||
+                                    ---
+                                    - 3
+                                    - 4
+                                    ---
+                                    foo: bar
+                                    baz: xyzzy
+                                  ||| ),
+                [[3, 4], {foo: "bar", baz: "xyzzy"}]) &&
 
-local x = kubecfg.manifestJson({foo: "bar", baz: [3, 4]}, indent=2);
-assert x == '{
-  "baz": [
-    3,
-    4
-  ],
-  "foo": "bar"
-}
-' : "got " + x;
+std.assertEqual(kubecfg.manifestJson({foo: "bar", baz: [3, 4]}),
+                |||
+                  {
+                      "baz": [
+                          3,
+                          4
+                      ],
+                      "foo": "bar"
+                  }
+               |||
+               ) &&
 
-local x = kubecfg.manifestYaml({foo: "bar", baz: [3, 4]});
-assert x == "baz:
-- 3
-- 4
-foo: bar
-" : "got " + x;
+std.assertEqual(kubecfg.manifestJson({foo: "bar", baz: [3, 4]}, indent=2),
+                |||
+                  {
+                    "baz": [
+                      3,
+                      4
+                    ],
+                    "foo": "bar"
+                  }
+                |||
+               ) &&
 
-local i = kubecfg.resolveImage("busybox");
-assert i == "busybox:latest" : "got " + i;
+std.assertEqual(kubecfg.manifestJson("foo"), '"foo"\n') &&
 
-assert kubecfg.regexMatch("o$", "foo");
+std.assertEqual(kubecfg.manifestYaml({foo: "bar", baz: [3, 4]}),
+                |||
+                  baz:
+                  - 3
+                  - 4
+                  foo: bar
+                |||
+               ) &&
 
-local r = kubecfg.escapeStringRegex("f[o");
-assert r == "f\\[o" : "got " + r;
+std.assertEqual(kubecfg.resolveImage("busybox"),
+                "busybox:latest") &&
 
-local r = kubecfg.regexSubst("e", "tree", "oll");
-assert r == "trolloll" : "got " + r;
+std.assertEqual(kubecfg.regexMatch("o$", "foo"), true) &&
+
+std.assertEqual(kubecfg.escapeStringRegex("f[o"), "f\\[o") &&
+
+std.assertEqual(kubecfg.regexSubst("e", "tree", "oll"),
+                "trolloll") &&
+
+true;
 
 // Kubecfg wants to see something that looks like a k8s object
 {
   apiVersion: "test",
   kind: "Result",
-  result: "SUCCESS"
+  // result==false assert-aborts above, but we should use the value
+  // somewhere here to ensure the expression actually gets evaluated.
+  result: if result then "SUCCESS" else "FAILED",
 }
