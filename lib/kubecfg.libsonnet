@@ -13,12 +13,6 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-// NB: libjsonnet native functions can only pass primitive types, so
-// some functions json-encode the arg.  These "*FromJson" functions
-// will be replaced by regular native version when libjsonnet is able
-// to support this.  This file strives to hide this implementation
-// detail.
-
 {
   // parseJson(data): parses the `data` string as a json document, and
   // returns the resulting jsonnet object.
@@ -34,16 +28,13 @@
   // to a string encoded as "pretty" (multi-line) JSON, with each
   // nesting level indented by `indent` spaces.
   manifestJson(value, indent=4):: (
-    local f = std.native("manifestJsonFromJson");
-    f(std.toString(value), indent)
+    local f = std.native("manifestJson");
+    f(value, indent)
   ),
 
   // manifestYaml(value): convert the jsonnet object `value` to a
   // string encoded as a single YAML document.
-  manifestYaml(value):: (
-    local f = std.native("manifestYamlFromJson");
-    f(std.toString(value))
-  ),
+  manifestYaml:: std.native("manifestYaml"),
 
   // escapeStringRegex(s): Quote the regex metacharacters found in s.
   // The result is a regex that will match the original literal
