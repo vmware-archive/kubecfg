@@ -1461,6 +1461,24 @@
 			"path": "k8s.io/kube-openapi/pkg/common",
 			"revision": "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf",
 			"revisionTime": "2018-02-16T21:26:18Z"
+		},
+		{
+			"checksumSHA1": "vVhRGgRR49IQFOw0vB3x60o8Ifo=",
+			"path": "k8s.io/kube-openapi/pkg/util/proto",
+			"revision": "41e43949ca69d04b66104069ed3ffd619b289b3d",
+			"revisionTime": "2018-05-24T22:16:15Z"
+		},
+		{
+			"checksumSHA1": "ytIW0VIkLumd1ueo8K0BPrOhov4=",
+			"path": "k8s.io/kube-openapi/pkg/util/proto/validation",
+			"revision": "41e43949ca69d04b66104069ed3ffd619b289b3d",
+			"revisionTime": "2018-05-24T22:16:15Z"
+		},
+		{
+			"checksumSHA1": "WhBIJ7CaupursqwNojIvDWt46I0=",
+			"path": "k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi",
+			"revision": "8306b0b1a4915d4b4e44f475aedf4345d592a7b7",
+			"revisionTime": "2018-05-25T18:33:15Z"
 		}
 	],
 	"rootPath": "github.com/ksonnet/kubecfg"

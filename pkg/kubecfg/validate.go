@@ -63,11 +63,10 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 		log.Info("Validating ", desc)
 
 		gvk := obj.GroupVersionKind()
-		gv := gvk.GroupVersion()
 
 		var allErrs []error
 
-		schema, err := utils.NewSwaggerSchemaFor(c.Discovery, gv)
+		schema, err := utils.NewOpenAPISchemaFor(c.Discovery, gvk)
 		if err != nil {
 			isNotFound := errors.IsNotFound(err) ||
 				strings.Contains(err.Error(), "is not supported by the server")
@@ -79,11 +78,6 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 		} else {
 			// Validate obj
 			for _, err := range schema.Validate(obj) {
-				_, isNotFound := err.(utils.TypeNotFoundError)
-				if isNotFound && (c.IgnoreUnknown || gvkExists(gvk)) {
-					log.Infof(" Found apiGroup, but it did not contain a schema for %s, ignoring", gvk)
-					continue
-				}
 				allErrs = append(allErrs, err)
 			}
 		}

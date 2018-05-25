@@ -92,7 +92,7 @@ var _ = Describe("update", func() {
 			It("Should fail with a useful error", func() {
 				Expect(kubecfgErr).To(HaveOccurred())
 				Expect(kubecfgOut.String()).
-					To(ContainSubstring("couldn't find type: v1.CanfogMop"))
+					To(ContainSubstring(`"/v1, Kind=CanfogMop" not found`))
 			})
 		})
 
@@ -106,7 +106,7 @@ var _ = Describe("update", func() {
 			It("Should fail with a useful error", func() {
 				Expect(kubecfgErr).To(HaveOccurred())
 				Expect(kubecfgOut.String()).
-					To(ContainSubstring("invalid field extrakey"))
+					To(ContainSubstring(`unknown field "extrakey" in io.k8s.api.core.v1.ConfigMap`))
 			})
 		})
 	})
