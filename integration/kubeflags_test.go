@@ -54,9 +54,7 @@ var _ = Describe("flags", func() {
 				&clientcmd.ConfigOverrides{})
 			rawconf, err := clientConfig.RawConfig()
 			Expect(err).NotTo(HaveOccurred())
-			tmp, err := clientcmdlatest.Scheme.Copy(&rawconf)
-			Expect(err).NotTo(HaveOccurred())
-			config = tmp.(*clientcmdapi.Config)
+			config = rawconf.DeepCopy()
 		})
 
 		JustBeforeEach(func() {

@@ -78,7 +78,7 @@ func TestEligibleForGc(t *testing.T) {
 		if ref.Controller != nil {
 			c["controller"] = *ref.Controller
 		}
-		u.Object["metadata"].(map[string]interface{})["ownerReferences"] = []map[string]interface{}{c}
+		u.Object["metadata"].(map[string]interface{})["ownerReferences"] = []interface{}{c}
 	}
 	setOwnerRef(o, metav1.OwnerReference{Kind: "foo", Name: "bar"})
 	if !eligibleForGc(o, myTag) {
