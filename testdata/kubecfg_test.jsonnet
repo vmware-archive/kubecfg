@@ -13,7 +13,11 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-// Run me with `../kubecfg show kubecfg_test.jsonnet`
+// Run me with `kubecfg show kubecfg_test.jsonnet`
+
+// NB: These tests are in a separate dir to kubecfg.libsonnet to verify
+// that kubecfg.libsonnet is found along the usual search path, and
+// not via a current-directory relative import.
 local kubecfg = import "kubecfg.libsonnet";
 
 local result =
