@@ -36,6 +36,7 @@ addons:
       - ca-certificates
 
 install:
+  - go get github.com/jteeuwen/go-bindata/go-bindata
   - |
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
       if ! which minikube; then
@@ -57,6 +58,12 @@ install:
     fi
 
 script:
+  - make generate
+  - |
+    if ! git diff --exit-code --name-only; then
+      echo 'Run "make generate" and add generated changes to this PR'
+      exit 1
+    fi
   - make all test vet
   - >
     ldd ./kubecfg || otool -L ./kubecfg || :
