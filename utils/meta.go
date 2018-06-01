@@ -111,6 +111,16 @@ func SetMetaDataAnnotation(obj metav1.Object, key, value string) {
 	obj.SetAnnotations(a)
 }
 
+// SetMetaDataLabel sets an annotation value
+func SetMetaDataLabel(obj metav1.Object, key, value string) {
+	l := obj.GetLabels()
+	if l == nil {
+		l = make(map[string]string)
+	}
+	l[key] = value
+	obj.SetLabels(l)
+}
+
 // ResourceNameFor returns a lowercase plural form of a type, for
 // human messages.  Returns lowercased kind if discovery lookup fails.
 func ResourceNameFor(disco discovery.ServerResourcesInterface, o runtime.Object) string {

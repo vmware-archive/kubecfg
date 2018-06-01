@@ -250,15 +250,33 @@ var _ = Describe("update", func() {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
+								// [gctag-migration]: Change to label-only in phase2
 								kubecfg.AnnotationGcTag: gcTag,
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag,
 							},
 							Name: "existing",
 						},
 					},
 					{
+						// [gctag-migration]: Pre-migration test. Remove in phase2
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
 								kubecfg.AnnotationGcTag: gcTag,
+							},
+							// No LabelGcTag!
+							Name: "existing-premigration",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								// [gctag-migration]: Change to label-only in phase2
+								kubecfg.AnnotationGcTag: gcTag,
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag,
 							},
 							Name: "existing-stale",
 						},
@@ -271,7 +289,11 @@ var _ = Describe("update", func() {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
+								// [gctag-migration]: Change to label-only in phase2
 								kubecfg.AnnotationGcTag: gcTag + "-not",
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag + "-not",
 							},
 							Name: "existing-othertag",
 						},
@@ -279,8 +301,12 @@ var _ = Describe("update", func() {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
+								// [gctag-migration]: Change to label-only in phase2
 								kubecfg.AnnotationGcTag:      gcTag,
 								kubecfg.AnnotationGcStrategy: kubecfg.GcStrategyIgnore,
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag,
 							},
 							Name: "existing-precious",
 						},
@@ -298,21 +324,41 @@ var _ = Describe("update", func() {
 							Name: "existing",
 						},
 					},
+					{
+						// [gctag-migration]: Pre-migration test. Remove in phase2
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "existing-premigration",
+						},
+					},
 				}
 			})
 
 			It("should add gctag to new object", func() {
 				o, err := c.ConfigMaps(ns).Get("new", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
+				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
 					To(HaveKeyWithValue(kubecfg.AnnotationGcTag, gcTag))
+				Expect(o.ObjectMeta.Labels).
+					To(HaveKeyWithValue(kubecfg.LabelGcTag, gcTag))
 			})
 
 			It("should keep gctag on existing object", func() {
 				o, err := c.ConfigMaps(ns).Get("existing", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
+				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
 					To(HaveKeyWithValue(kubecfg.AnnotationGcTag, gcTag))
+				Expect(o.ObjectMeta.Labels).
+					To(HaveKeyWithValue(kubecfg.LabelGcTag, gcTag))
+			})
+
+			// [gctag-migration]: Pre-migration test. Remove in phase2
+			It("should add gctag label to pre-migration object", func() {
+				o, err := c.ConfigMaps(ns).Get("existing-premigration", metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(o.ObjectMeta.Labels).
+					To(HaveKeyWithValue(kubecfg.LabelGcTag, gcTag))
 			})
 
 			It("should delete stale object", func() {
@@ -342,8 +388,12 @@ var _ = Describe("update", func() {
 				preExist = []*v1.ConfigMap{
 					{
 						ObjectMeta: metav1.ObjectMeta{
+							// [gctag-migration]: Remove annotation in phase2
 							Annotations: map[string]string{
 								kubecfg.AnnotationGcTag: gcTag,
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag,
 							},
 							Name: "existing",
 						},
@@ -375,8 +425,12 @@ var _ = Describe("update", func() {
 				preExist = []*v1.ConfigMap{
 					{
 						ObjectMeta: metav1.ObjectMeta{
+							// [gctag-migration]: Remove annotation in phase2
 							Annotations: map[string]string{
 								kubecfg.AnnotationGcTag: gcTag,
+							},
+							Labels: map[string]string{
+								kubecfg.LabelGcTag: gcTag,
 							},
 							Name: "existing",
 						},
@@ -399,8 +453,11 @@ var _ = Describe("update", func() {
 			It("should add gctag to new object", func() {
 				o, err := c.ConfigMaps(ns).Get("new", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
+				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
 					To(HaveKeyWithValue(kubecfg.AnnotationGcTag, gcTag))
+				Expect(o.ObjectMeta.Labels).
+					To(HaveKeyWithValue(kubecfg.LabelGcTag, gcTag))
 			})
 		})
 	})
