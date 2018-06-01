@@ -82,7 +82,7 @@ var _ = Describe("validate", func() {
 		It("Should fail with a useful error", func() {
 			Expect(kubecfgErr).To(HaveOccurred())
 			Expect(output).
-				To(ContainSubstring("Error in configmaps foo: found invalid field nimspace for v1.ObjectMeta"))
+				To(ContainSubstring(`unknown field "nimspace" in io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta`))
 			Expect(output).
 				To(ContainSubstring("Validation failed"))
 		})
@@ -104,7 +104,7 @@ var _ = Describe("validate", func() {
 		It("Should fail with a useful error", func() {
 			Expect(kubecfgErr).To(HaveOccurred())
 			Expect(output).
-				To(ContainSubstring("couldn't find type: v1.xConfigMap"))
+				To(ContainSubstring(`"/v1, Kind=xConfigMap" not found`))
 			Expect(output).
 				To(ContainSubstring("Validation failed"))
 		})
@@ -140,7 +140,7 @@ var _ = Describe("validate", func() {
 		It("Should fail with a useful error", func() {
 			Expect(kubecfgErr).To(HaveOccurred())
 			Expect(output).
-				To(ContainSubstring("Unable to fetch schema: API version: example.com/v1alpha1 is not supported by the server"))
+				To(ContainSubstring(`"example.com/v1alpha1, Kind=UnregisteredKind" not found`))
 			Expect(output).
 				To(ContainSubstring("Validation failed"))
 		})

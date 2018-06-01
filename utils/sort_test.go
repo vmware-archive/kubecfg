@@ -22,7 +22,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/emicklei/go-restful-swagger12"
+	"github.com/googleapis/gnostic/OpenAPIv2"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,10 +33,10 @@ import (
 
 type FakeDiscovery struct {
 	Fake     *ktesting.Fake
-	delegate discovery.SwaggerSchemaInterface
+	delegate discovery.OpenAPISchemaInterface
 }
 
-func NewFakeDiscovery(delegate discovery.SwaggerSchemaInterface) *FakeDiscovery {
+func NewFakeDiscovery(delegate discovery.OpenAPISchemaInterface) *FakeDiscovery {
 	fakePtr := &ktesting.Fake{}
 	return &FakeDiscovery{
 		Fake:     fakePtr,
@@ -98,16 +98,14 @@ func (c *FakeDiscovery) ServerPreferredNamespacedResources() ([]*metav1.APIResou
 	panic("unimplemented")
 }
 
-var _ discovery.SwaggerSchemaInterface = &FakeDiscovery{}
+var _ discovery.OpenAPISchemaInterface = &FakeDiscovery{}
 
-func (c *FakeDiscovery) SwaggerSchema(gv schema.GroupVersion) (*swagger.ApiDeclaration, error) {
-	log.Debugf("SwaggerSchema(%v) called", gv)
+func (c *FakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
 	action := ktesting.ActionImpl{}
 	action.Verb = "get"
-	action.Resource = gv.WithResource("schema")
 	c.Fake.Invokes(action, nil)
 
-	return c.delegate.SwaggerSchema(gv)
+	return c.delegate.OpenAPISchema()
 }
 
 func TestDepSort(t *testing.T) {

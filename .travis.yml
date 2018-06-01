@@ -23,7 +23,7 @@ env:
 
 matrix:
   include:
-    - env: DO_INTEGRATION_TEST=1 INT_KVERS=v1.7.0
+    - env: DO_INTEGRATION_TEST=1 INT_KVERS=v1.9.4
   fast_finish: true
 
 services:
@@ -41,7 +41,7 @@ install:
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
       if ! which minikube; then
         wget -O minikube \
-           https://storage.googleapis.com/minikube/releases/v0.21.0/minikube-$(go env GOOS)-$(go env GOARCH)
+           https://storage.googleapis.com/minikube/releases/v0.25.2/minikube-$(go env GOOS)-$(go env GOARCH)
         install -m 755 minikube $GOPATH/bin/minikube
       fi
       if ! which kubectl; then

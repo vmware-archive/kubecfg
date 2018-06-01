@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/emicklei/go-restful-swagger12"
+	swagger "github.com/emicklei/go-restful-swagger12"
 	"github.com/googleapis/gnostic/OpenAPIv2"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi"
 )
 
 type memcachedDiscoveryClient struct {
@@ -37,7 +38,7 @@ type memcachedDiscoveryClient struct {
 	lock            sync.RWMutex
 	servergroups    *metav1.APIGroupList
 	serverresources map[string]*metav1.APIResourceList
-	schemas         map[string]*swagger.ApiDeclaration
+	schemas         map[string]openapi.Resources
 	schema          *openapi_v2.Document
 }
 
@@ -59,7 +60,7 @@ func (c *memcachedDiscoveryClient) Invalidate() {
 
 	c.servergroups = nil
 	c.serverresources = make(map[string]*metav1.APIResourceList)
-	c.schemas = make(map[string]*swagger.ApiDeclaration)
+	c.schemas = make(map[string]openapi.Resources)
 }
 
 func (c *memcachedDiscoveryClient) RESTClient() rest.Interface {
@@ -106,25 +107,6 @@ func (c *memcachedDiscoveryClient) ServerVersion() (*version.Info, error) {
 	return c.cl.ServerVersion()
 }
 
-func (c *memcachedDiscoveryClient) SwaggerSchema(version schema.GroupVersion) (*swagger.ApiDeclaration, error) {
-	key := version.String()
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if c.schemas[key] != nil {
-		return c.schemas[key], nil
-	}
-
-	schema, err := c.cl.SwaggerSchema(version)
-	if err != nil {
-		return nil, err
-	}
-
-	c.schemas[key] = schema
-	return schema, nil
-}
-
 func (c *memcachedDiscoveryClient) OpenAPISchema() (*openapi_v2.Document, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -140,6 +122,15 @@ func (c *memcachedDiscoveryClient) OpenAPISchema() (*openapi_v2.Document, error)
 
 	c.schema = schema
 	return schema, nil
+}
+
+// only formally implement the SwaggerSchema method since it's still required in the
+// The next version of the DiscoveryInterface gets rid of this method.
+// Since we're not exercising the Swagger API here, this method won't ever be called.
+//
+// TODO(mkm): remove once upgrading client-go
+func (c *memcachedDiscoveryClient) SwaggerSchema(version schema.GroupVersion) (*swagger.ApiDeclaration, error) {
+	return c.cl.SwaggerSchema(version)
 }
 
 var _ discovery.CachedDiscoveryInterface = &memcachedDiscoveryClient{}
