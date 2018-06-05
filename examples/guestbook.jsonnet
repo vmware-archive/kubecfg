@@ -111,7 +111,7 @@ local redis(name) = {
                 env_+: {
                   REDIS_REPLICATION_MODE: "slave",
                   REDIS_MASTER_HOST: $.master.svc.metadata.name,
-                  REDIS_MASTER_PORT_NUMBER: 6379,
+                  REDIS_MASTER_PORT_NUMBER: "6379",
                 },
               },
             },
