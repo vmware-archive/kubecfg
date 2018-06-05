@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sync"
 
-	swagger "github.com/emicklei/go-restful-swagger12"
 	"github.com/googleapis/gnostic/OpenAPIv2"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -122,15 +121,6 @@ func (c *memcachedDiscoveryClient) OpenAPISchema() (*openapi_v2.Document, error)
 
 	c.schema = schema
 	return schema, nil
-}
-
-// only formally implement the SwaggerSchema method since it's still required in the
-// The next version of the DiscoveryInterface gets rid of this method.
-// Since we're not exercising the Swagger API here, this method won't ever be called.
-//
-// TODO(mkm): remove once upgrading client-go
-func (c *memcachedDiscoveryClient) SwaggerSchema(version schema.GroupVersion) (*swagger.ApiDeclaration, error) {
-	return c.cl.SwaggerSchema(version)
 }
 
 var _ discovery.CachedDiscoveryInterface = &memcachedDiscoveryClient{}
