@@ -101,22 +101,22 @@ var _ = Describe("validate", func() {
 			})
 		})
 
-		It("Should fail with a useful error", func() {
-			Expect(kubecfgErr).To(HaveOccurred())
-			Expect(output).
-				To(ContainSubstring(`"/v1, Kind=xConfigMap" not found`))
-			Expect(output).
-				To(ContainSubstring("Validation failed"))
+		It("should succeed", func() {
+			Expect(kubecfgErr).NotTo(HaveOccurred())
+			Expect(output).NotTo(ContainSubstring("Validation failed"))
 		})
 
-		Context("With --ignore-unknown", func() {
+		Context("With --ignore-unknown=false", func() {
 			BeforeEach(func() {
-				args = append(args, "--ignore-unknown")
+				args = append(args, "--ignore-unknown=false")
 			})
 
-			It("should succeed", func() {
-				Expect(kubecfgErr).NotTo(HaveOccurred())
-				Expect(output).NotTo(ContainSubstring("Validation failed"))
+			It("Should fail with a useful error", func() {
+				Expect(kubecfgErr).To(HaveOccurred())
+				Expect(output).
+					To(ContainSubstring(`"/v1, Kind=xConfigMap" not found`))
+				Expect(output).
+					To(ContainSubstring("Validation failed"))
 			})
 		})
 	})
@@ -137,22 +137,22 @@ var _ = Describe("validate", func() {
 			})
 		})
 
-		It("Should fail with a useful error", func() {
-			Expect(kubecfgErr).To(HaveOccurred())
-			Expect(output).
-				To(ContainSubstring(`"example.com/v1alpha1, Kind=UnregisteredKind" not found`))
-			Expect(output).
-				To(ContainSubstring("Validation failed"))
+		It("should succeed", func() {
+			Expect(kubecfgErr).NotTo(HaveOccurred())
+			Expect(output).NotTo(ContainSubstring("Validation failed"))
 		})
 
-		Context("With --ignore-unknown", func() {
+		Context("With --ignore-unknown=false", func() {
 			BeforeEach(func() {
-				args = append(args, "--ignore-unknown")
+				args = append(args, "--ignore-unknown=false")
 			})
 
-			It("should succeed", func() {
-				Expect(kubecfgErr).NotTo(HaveOccurred())
-				Expect(output).NotTo(ContainSubstring("Validation failed"))
+			It("Should fail with a useful error", func() {
+				Expect(kubecfgErr).To(HaveOccurred())
+				Expect(output).
+					To(ContainSubstring(`"example.com/v1alpha1, Kind=UnregisteredKind" not found`))
+				Expect(output).
+					To(ContainSubstring("Validation failed"))
 			})
 		})
 	})
