@@ -27,7 +27,7 @@ const (
 
 func init() {
 	RootCmd.AddCommand(validateCmd)
-	validateCmd.PersistentFlags().Bool(flagIgnoreUnknown, false, "Don't fail if the schema for a given resource type is not found")
+	validateCmd.PersistentFlags().Bool(flagIgnoreUnknown, true, "Don't fail if the schema for a given resource type is not found")
 }
 
 var validateCmd = &cobra.Command{
