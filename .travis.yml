@@ -3,6 +3,7 @@ language: go
 go:
   # NB: order matters - matrix items that don't specify will use the
   # first value (ditto for `os` below)
+  - 1.11.x
   - 1.9.x
   - 1.8.x
 

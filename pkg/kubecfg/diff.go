@@ -51,7 +51,7 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 	diffFound := false
 	for _, obj := range apiObjects {
 		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
-		log.Debugf("Fetching ", desc)
+		log.Debug("Fetching ", desc)
 
 		client, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
 		if err != nil {
