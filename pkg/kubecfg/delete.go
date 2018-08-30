@@ -80,7 +80,7 @@ func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
 			return fmt.Errorf("Error deleting %s: %s", desc, err)
 		}
 
-		log.Debugf("Deleted object: ", obj)
+		log.Debug("Deleted object: ", obj)
 	}
 
 	return nil
