@@ -70,7 +70,7 @@ std.assertEqual(kubecfg.manifestYaml({foo: "bar", baz: [3, 4]}),
                ) &&
 
 std.assertEqual(kubecfg.resolveImage("busybox"),
-                "busybox:latest") &&
+                "docker.io/library/busybox:latest") &&
 
 std.assertEqual(kubecfg.regexMatch("o$", "foo"), true) &&
 
