@@ -23,6 +23,8 @@ import (
 	"github.com/genuinetools/reg/repoutils"
 )
 
+const defaultRegistry = "registry-1.docker.io"	
+
 // ImageName represents the parts of a docker image name
 type ImageName struct {
 	// eg: "myregistryhost:5000/fedora/httpd:version1.0"
