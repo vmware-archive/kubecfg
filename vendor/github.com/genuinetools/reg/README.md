@@ -1,79 +1,70 @@
 # reg
 
-[![Travis CI](https://travis-ci.org/genuinetools/reg.svg?branch=master)](https://travis-ci.org/genuinetools/reg)
+[![Travis CI](https://img.shields.io/travis/genuinetools/reg.svg?style=for-the-badge)](https://travis-ci.org/genuinetools/reg)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=for-the-badge)](https://godoc.org/github.com/genuinetools/reg)
+[![Github All Releases](https://img.shields.io/github/downloads/genuinetools/reg/total.svg?style=for-the-badge)](https://github.com/genuinetools/reg/releases)
 
-Docker registry v2 command line client.
+Docker registry v2 command line client and repo listing generator with security checks.
 
-- [Installation](#installation)
-    + [Binaries](#binaries)
-    + [Via Go](#via-go)
-- [Usage](#usage)
-    + [Auth](#auth)
-    + [List Repositories and Tags](#list-repositories-and-tags)
-    + [Get a Manifest](#get-a-manifest)
-    + [Get the Digest](#get-the-digest)
-    + [Download a Layer](#download-a-layer)
-    + [Delete an Image](#delete-an-image)
-    + [Vulnerability Reports](#vulnerability-reports)
-    + [Using Self-Signed Certs with a Registry](#using-self-signed-certs-with-a-registry)
-- [Contributing](#contributing)
+ * [Installation](README.md#installation)
+      * [Binaries](README.md#binaries)
+      * [Via Go](README.md#via-go)
+ * [Usage](README.md#usage)
+   * [Auth](README.md#auth)
+   * [List Repositories and Tags](README.md#list-repositories-and-tags)
+   * [Get a Manifest](README.md#get-a-manifest)
+   * [Get the Digest](README.md#get-the-digest)
+   * [Download a Layer](README.md#download-a-layer)
+   * [Delete an Image](README.md#delete-an-image)
+   * [Vulnerability Reports](README.md#vulnerability-reports)
+   * [Running a Static UI Server for a Registry](README.md#running-a-static-ui-server-for-a-registry)
+   * [Using Self-Signed Certs with a Registry](README.md#using-self-signed-certs-with-a-registry)
+ * [Contributing](README.md#contributing)
 
 ## Installation
 
 #### Binaries
 
-- **darwin** [386](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-darwin-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-darwin-amd64)
-- **linux** [386](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-linux-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-linux-amd64) / [arm](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-linux-arm) / [arm64](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-linux-arm64)
-- **windows** [386](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-windows-386) / [amd64](https://github.com/genuinetools/reg/releases/download/v0.14.1/reg-windows-amd64)
+For installation instructions from binaries please visit the [Releases Page](https://github.com/genuinetools/reg/releases).
 
 #### Via Go
 
-```bash
+```console
 $ go get github.com/genuinetools/reg
 ```
 
 ## Usage
 
 ```console
-$ reg
-NAME:
-   reg - Docker registry v2 client.
+$ reg -h
+reg -  Docker registry v2 client.
 
-USAGE:
-   reg [global options] command [command options] [arguments...]
+Usage: reg <command>
 
-VERSION:
-   version v0.14.1, build 3b7dafb
+Flags:
 
-AUTHOR:
-   The Genuinetools Authors <no-reply@butts.com>
+  -d                   enable debug logging (default: false)
+  -f, --force-non-ssl  force allow use of non-ssl (default: false)
+  -k, --insecure       do not verify tls certificates (default: false)
+  -p, --password       password for the registry (default: <none>)
+  --skip-ping          skip pinging the registry while establishing connection (default: false)
+  --timeout            timeout for HTTP requests (default: 1m0s)
+  -u, --username       username for the registry (default: <none>)
 
-COMMANDS:
-     delete, rm       delete a specific reference of a repository
-     digest           get the digest
-     layer, download  download a layer for the specific reference of a repository
-     list, ls         list all repositories
-     manifest         get the json manifest for the specific reference of a repository
-     tags             get the tags for a repository
-     vulns            get a vulnerability report for the image from CoreOS Clair
-     help, h          Shows a list of commands or help for one command
+Commands:
 
-GLOBAL OPTIONS:
-   --debug, -d                 run in debug mode
-   --insecure, -k              do not verify tls certificates
-   --force-non-ssl, -f         force allow use of non-ssl
-   --username value, -u value  username for the registry
-   --password value, -p value  password for the registry
-   --timeout value             timeout for HTTP requests (default: "1m")
-   --skip-ping                 skip pinging the registry while establishing connection
-   --help, -h                  show help
-   --version, -v               print the version
+  digest    Get the digest for a repository.
+  layer     Download a layer for a repository.
+  ls        List all repositories.
+  manifest  Get the json manifest for a repository.
+  rm        Delete a specific reference of a repository.
+  server    Run a static UI server for a registry.
+  tags      Get the tags for a repository.
+  vulns     Get a vulnerability report for a repository from a CoreOS Clair server.
+  version   Show the version information.
 ```
 
-Note that the `--registry` can be set by an environment variable `REG_REGISTRY`, so you can set this in your shell login scripts.
-Specifying the registry on the command-line will override an environment variable setting.
-
-**NOTE:** Be aware that `reg ls` doesn't work with `hub.docker.com` as it has a different API then the [OSS Docker Registry](https://github.com/docker/distribution)
+**NOTE:** Be aware that `reg ls` doesn't work with `hub.docker.com` as it has a different API than the [OSS Docker Registry](https://github.com/docker/distribution).
 
 ### Auth
 
@@ -104,6 +95,20 @@ alpha
 hardened
 latest
 stable
+
+# or for an offical image
+$ reg tags debian
+6
+6.0
+6.0.10
+6.0.8
+6.0.9
+7
+7-slim
+7.10
+7.11
+7.11-slim
+...
 ```
 
 ### Get a Manifest
@@ -189,6 +194,54 @@ Medium: 3
 High: 1
 ```
 
+### Generating Static Website for a Registry
+
+`reg` bundles a HTTP server that periodically generates a static website
+with a list of registry images and serves it to the web.
+
+It will run vulnerability scanning if you
+have a [CoreOS Clair](https://github.com/coreos/clair) server set up
+and pass the url with the `--clair` flag.
+
+It is possible to run `reg server` just as a one time static generator.
+`--once` flag makes the `server` command exit after it builds the HTML listing.
+
+There is a demo at [r.j3ss.co](https://r.j3ss.co).
+
+**Usage:**
+
+```console
+$ reg server -h
+Usage: reg server [OPTIONS]
+
+Run a static UI server for a registry.
+
+Flags:
+
+  -u, --username       username for the registry (default: <none>)
+  --listen-address     address to listen on (default: <none>)
+  --asset-path         Path to assets and templates (default: <none>)
+  -f, --force-non-ssl  force allow use of non-ssl (default: false)
+  --once               generate the templates once and then exit (default: false)
+  --skip-ping          skip pinging the registry while establishing connection (default: false)
+  --timeout            timeout for HTTP requests (default: 1m0s)
+  --cert               path to ssl cert (default: <none>)
+  -d                   enable debug logging (default: false)
+  --key                path to ssl key (default: <none>)
+  --port               port for server to run on (default: 8080)
+  -r, --registry       URL to the private registry (ex. r.j3ss.co) (default: <none>)
+  --clair              url to clair instance (default: <none>)
+  -k, --insecure       do not verify tls certificates (default: false)
+  --interval           interval to generate new index.html's at (default: 1h0m0s)
+  -p, --password       password for the registry (default: <none>)
+```
+
+**Screenshots:**
+
+![home.png](server/home.png)
+
+![vuln.png](server/vuln.png)
+
 ### Using Self-Signed Certs with a Registry
 
 We do not allow users to pass all the custom certificate flags on commands
@@ -202,7 +255,7 @@ trusted ca-certificates on Linux.
 
 Make sure you have the package `ca-certificates` installed.
 
-Copy the public half of your CA certificate (the one user to sign the CSR) into
+Copy the public half of your CA certificate (the one used to sign the CSR) into
 the CA certificate directory (as root):
 
 ```console
