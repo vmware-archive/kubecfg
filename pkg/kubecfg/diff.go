@@ -38,6 +38,9 @@ import (
 
 var ErrDiffFound = fmt.Errorf("Differences found.")
 
+// Matches all the line starts on a diff text, which is where we put diff markers and indent
+var DiffLineStart = regexp.MustCompile("(^|\n)(.)")
+
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
 	ClientPool       dynamic.ClientPool
@@ -93,12 +96,12 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 			false)
 
 		diff = dmp.DiffCharsToLines(diff, lines)
-		if len(diff) > 0 {
+		if (len(diff) == 1) && (diff[0].Type == diffmatchpatch.DiffEqual) {
+			fmt.Fprintf(out, "%s unchanged\n", desc)
+		} else {
 			diffFound = true
 			text := c.formatDiff(diff, isatty.IsTerminal(os.Stdout.Fd()))
 			fmt.Fprintf(out, "%s\n", text)
-		} else {
-			fmt.Fprintf(out, "%s unchanged\n", desc)
 		}
 	}
 
@@ -112,23 +115,20 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool) string {
 	var buff bytes.Buffer
 
-	// Matches all the line starts on a diff text, which is where we put diff markers and indent
-	lineStart := regexp.MustCompile("(^|\n)(.)")
-
 	for _, diff := range diffs {
 		text := diff.Text
 
 		switch diff.Type {
 		case diffmatchpatch.DiffInsert:
 			if color { _, _ = buff.WriteString("\x1b[32m") }
-			_, _ = buff.WriteString(lineStart.ReplaceAllString(text, "$1+ $2"))
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1+ $2"))
 			if color { _, _ = buff.WriteString("\x1b[0m") }
 		case diffmatchpatch.DiffDelete:
 			if color { _, _ = buff.WriteString("\x1b[31m") }
-			_, _ = buff.WriteString(lineStart.ReplaceAllString(text, "$1- $2"))
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1- $2"))
 			if color { _, _ = buff.WriteString("\x1b[0m") }
 		case diffmatchpatch.DiffEqual:
-			_, _ = buff.WriteString(lineStart.ReplaceAllString(text, "$1  $2"))
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1  $2"))
 		}
 	}
 
