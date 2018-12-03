@@ -16,15 +16,17 @@
 package kubecfg
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"sort"
+	"regexp"
 
 	isatty "github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
-	"github.com/yudai/gojsondiff"
-	"github.com/yudai/gojsondiff/formatter"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,6 +37,9 @@ import (
 )
 
 var ErrDiffFound = fmt.Errorf("Differences found.")
+
+// Matches all the line starts on a diff text, which is where we put diff markers and indent
+var DiffLineStart = regexp.MustCompile("(^|\n)(.)")
 
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
@@ -48,6 +53,7 @@ type DiffCmd struct {
 func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
 	sort.Sort(utils.AlphabeticalOrder(apiObjects))
 
+	dmp := diffmatchpatch.New()
 	diffFound := false
 	for _, obj := range apiObjects {
 		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
@@ -78,21 +84,24 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 		if c.DiffStrategy == "subset" {
 			liveObjObject = removeMapFields(obj.Object, liveObjObject)
 		}
-		diff := gojsondiff.New().CompareObjects(liveObjObject, obj.Object)
 
-		if diff.Modified() {
-			diffFound = true
-			fcfg := formatter.AsciiFormatterConfig{
-				Coloring: istty(out),
-			}
-			formatter := formatter.NewAsciiFormatter(liveObjObject, fcfg)
-			text, err := formatter.Format(diff)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(out, "%s", text)
-		} else {
+		liveObjText, _ := json.MarshalIndent(liveObjObject, "", "  ")
+		objText, _ := json.MarshalIndent(obj.Object, "", "  ")
+
+		liveObjTextLines, objTextLines, lines := dmp.DiffLinesToChars(string(liveObjText), string(objText))
+
+		diff := dmp.DiffMain(
+			string(liveObjTextLines),
+			string(objTextLines),
+			false)
+
+		diff = dmp.DiffCharsToLines(diff, lines)
+		if (len(diff) == 1) && (diff[0].Type == diffmatchpatch.DiffEqual) {
 			fmt.Fprintf(out, "%s unchanged\n", desc)
+		} else {
+			diffFound = true
+			text := c.formatDiff(diff, isatty.IsTerminal(os.Stdout.Fd()))
+			fmt.Fprintf(out, "%s\n", text)
 		}
 	}
 
@@ -100,6 +109,30 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 		return ErrDiffFound
 	}
 	return nil
+}
+
+// Formats the supplied Diff as a unified-diff-like text with infinite context and optionally colorizes it.
+func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool) string {
+	var buff bytes.Buffer
+
+	for _, diff := range diffs {
+		text := diff.Text
+
+		switch diff.Type {
+		case diffmatchpatch.DiffInsert:
+			if color { _, _ = buff.WriteString("\x1b[32m") }
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1+ $2"))
+			if color { _, _ = buff.WriteString("\x1b[0m") }
+		case diffmatchpatch.DiffDelete:
+			if color { _, _ = buff.WriteString("\x1b[31m") }
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1- $2"))
+			if color { _, _ = buff.WriteString("\x1b[0m") }
+		case diffmatchpatch.DiffEqual:
+			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1  $2"))
+		}
+	}
+
+	return buff.String()
 }
 
 // See also feature request for golang reflect pkg at
