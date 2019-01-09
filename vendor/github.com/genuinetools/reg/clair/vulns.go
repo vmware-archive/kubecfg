@@ -1,6 +1,7 @@
 package clair
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 // Vulnerabilities scans the given repo and tag.
-func (c *Clair) Vulnerabilities(r *registry.Registry, repo, tag string) (VulnerabilityReport, error) {
+func (c *Clair) Vulnerabilities(ctx context.Context, r *registry.Registry, repo, tag string) (VulnerabilityReport, error) {
 	report := VulnerabilityReport{
 		RegistryURL:     r.Domain,
 		Repo:            repo,
@@ -19,7 +20,7 @@ func (c *Clair) Vulnerabilities(r *registry.Registry, repo, tag string) (Vulnera
 		VulnsBySeverity: make(map[string][]Vulnerability),
 	}
 
-	filteredLayers, err := c.getLayers(r, repo, tag, true)
+	filteredLayers, _, err := c.getLayers(ctx, r, repo, tag, true)
 	if err != nil {
 		return report, fmt.Errorf("getting filtered layers failed: %v", err)
 	}
@@ -31,20 +32,20 @@ func (c *Clair) Vulnerabilities(r *registry.Registry, repo, tag string) (Vulnera
 
 	for i := len(filteredLayers) - 1; i >= 0; i-- {
 		// Form the clair layer.
-		l, err := c.NewClairLayer(r, repo, filteredLayers, i)
+		l, err := c.NewClairLayer(ctx, r, repo, filteredLayers, i)
 		if err != nil {
 			return report, err
 		}
 
 		// Post the layer.
-		if _, err := c.PostLayer(l); err != nil {
+		if _, err := c.PostLayer(ctx, l); err != nil {
 			return report, err
 		}
 	}
 
 	report.Name = filteredLayers[0].Digest.String()
 
-	vl, err := c.GetLayer(filteredLayers[0].Digest.String(), true, true)
+	vl, err := c.GetLayer(ctx, filteredLayers[0].Digest.String(), true, true)
 	if err != nil {
 		return report, err
 	}
@@ -76,7 +77,7 @@ func (c *Clair) Vulnerabilities(r *registry.Registry, repo, tag string) (Vulnera
 }
 
 // VulnerabilitiesV3 scans the given repo and tag using the clair v3 API.
-func (c *Clair) VulnerabilitiesV3(r *registry.Registry, repo, tag string) (VulnerabilityReport, error) {
+func (c *Clair) VulnerabilitiesV3(ctx context.Context, r *registry.Registry, repo, tag string) (VulnerabilityReport, error) {
 	report := VulnerabilityReport{
 		RegistryURL:     r.Domain,
 		Repo:            repo,
@@ -85,7 +86,7 @@ func (c *Clair) VulnerabilitiesV3(r *registry.Registry, repo, tag string) (Vulne
 		VulnsBySeverity: make(map[string][]Vulnerability),
 	}
 
-	layers, err := c.getLayers(r, repo, tag, false)
+	layers, reportName, err := c.getLayers(ctx, r, repo, tag, false)
 	if err != nil {
 		return report, fmt.Errorf("getting filtered layers failed: %v", err)
 	}
@@ -95,12 +96,12 @@ func (c *Clair) VulnerabilitiesV3(r *registry.Registry, repo, tag string) (Vulne
 		return report, nil
 	}
 
-	report.Name = layers[0].Digest.String()
+	report.Name = reportName
 
 	clairLayers := []*clairpb.PostAncestryRequest_PostLayer{}
 	for i := len(layers) - 1; i >= 0; i-- {
 		// Form the clair layer.
-		l, err := c.NewClairV3Layer(r, repo, layers[i])
+		l, err := c.NewClairV3Layer(ctx, r, repo, layers[i])
 		if err != nil {
 			return report, err
 		}
@@ -110,12 +111,12 @@ func (c *Clair) VulnerabilitiesV3(r *registry.Registry, repo, tag string) (Vulne
 	}
 
 	// Post the ancestry.
-	if err := c.PostAncestry(layers[0].Digest.String(), clairLayers); err != nil {
+	if err := c.PostAncestry(ctx, reportName, clairLayers); err != nil {
 		return report, fmt.Errorf("posting ancestry failed: %v", err)
 	}
 
 	// Get the ancestry.
-	vl, err := c.GetAncestry(layers[0].Digest.String(), true, true)
+	vl, err := c.GetAncestry(ctx, reportName)
 	if err != nil {
 		return report, err
 	}
@@ -125,17 +126,19 @@ func (c *Clair) VulnerabilitiesV3(r *registry.Registry, repo, tag string) (Vulne
 	}
 
 	// Get the vulns.
-	for _, f := range vl.Features {
-		for _, v := range f.Vulnerabilities {
-			report.Vulns = append(report.Vulns, Vulnerability{
-				Name:          v.Name,
-				NamespaceName: v.NamespaceName,
-				Description:   v.Description,
-				Link:          v.Link,
-				Severity:      v.Severity,
-				Metadata:      map[string]interface{}{v.Metadata: ""},
-				FixedBy:       v.FixedBy,
-			})
+	for _, l := range vl.GetLayers() {
+		for _, f := range l.GetDetectedFeatures() {
+			for _, v := range f.GetVulnerabilities() {
+				report.Vulns = append(report.Vulns, Vulnerability{
+					Name:          v.Name,
+					NamespaceName: v.NamespaceName,
+					Description:   v.Description,
+					Link:          v.Link,
+					Severity:      v.Severity,
+					Metadata:      map[string]interface{}{v.Metadata: ""},
+					FixedBy:       v.FixedBy,
+				})
+			}
 		}
 	}
 

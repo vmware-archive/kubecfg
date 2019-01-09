@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/genuinetools/reg/clair"
 	"github.com/genuinetools/reg/registry"
@@ -20,7 +21,7 @@ func (cmd *vulnsCommand) LongHelp() string  { return vulnsHelp }
 func (cmd *vulnsCommand) Hidden() bool      { return false }
 
 func (cmd *vulnsCommand) Register(fs *flag.FlagSet) {
-	fs.StringVar(&cmd.clairServer, "clair", "", "url to clair instance")
+	fs.StringVar(&cmd.clairServer, "clair", os.Getenv("CLAIR_URL"), "url to clair instance (or env var CLAIR_URL)")
 	fs.IntVar(&cmd.fixableThreshold, "fixable-threshhold", 0, "number of fixable issues permitted")
 }
 
@@ -48,7 +49,7 @@ func (cmd *vulnsCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	// Create the registry client.
-	r, err := createRegistryClient(image.Domain)
+	r, err := createRegistryClient(ctx, image.Domain)
 	if err != nil {
 		return err
 	}
@@ -64,10 +65,10 @@ func (cmd *vulnsCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	// Get the vulnerability report.
-	report, err := cr.VulnerabilitiesV3(r, image.Path, image.Reference())
+	report, err := cr.VulnerabilitiesV3(ctx, r, image.Path, image.Reference())
 	if err != nil {
 		// Fallback to Clair v2 API.
-		report, err = cr.Vulnerabilities(r, image.Path, image.Reference())
+		report, err = cr.Vulnerabilities(ctx, r, image.Path, image.Reference())
 		if err != nil {
 			return err
 		}
@@ -84,6 +85,11 @@ func (cmd *vulnsCommand) Run(ctx context.Context, args []string) error {
 			}
 			fmt.Println("-----------------------------------------")
 		}
+	}
+
+	if len(report.VulnsBySeverity) < 1 {
+		fmt.Println("No vulnerabilies found.")
+		return nil
 	}
 
 	// Print summary and count.

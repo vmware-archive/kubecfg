@@ -5,6 +5,7 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
 RUN	apk add --no-cache \
+	bash \
 	ca-certificates
 
 COPY . /go/src/github.com/genuinetools/reg
@@ -23,13 +24,10 @@ RUN set -x \
 	&& rm -rf /go \
 	&& echo "Build complete."
 
-FROM scratch
+FROM alpine:latest
 
 COPY --from=builder /usr/bin/reg /usr/bin/reg
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
-
-COPY server/static /src/static
-COPY server/templates /src/templates
 
 WORKDIR /src
 

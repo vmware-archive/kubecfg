@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -43,7 +44,7 @@ type Repository struct {
 	VulnerabilityReport clair.VulnerabilityReport `json:"vulnerability"`
 }
 
-// A AnalysisResult holds all vulnerabilities of a scan
+// An AnalysisResult holds all vulnerabilities of a scan
 type AnalysisResult struct {
 	Repositories   []Repository `json:"repositories"`
 	RegistryDomain string       `json:"registryDomain"`
@@ -53,7 +54,7 @@ type AnalysisResult struct {
 	UpdateInterval time.Duration
 }
 
-func (rc *registryController) repositories(staticDir string) error {
+func (rc *registryController) repositories(ctx context.Context, staticDir string) error {
 	rc.l.Lock()
 	defer rc.l.Unlock()
 
@@ -65,7 +66,7 @@ func (rc *registryController) repositories(staticDir string) error {
 		UpdateInterval: rc.interval,
 	}
 
-	repoList, err := rc.reg.Catalog("")
+	repoList, err := rc.reg.Catalog(ctx, "")
 	if err != nil {
 		return fmt.Errorf("getting catalog for %s failed: %v", rc.reg.Domain, err)
 	}
@@ -94,7 +95,7 @@ func (rc *registryController) repositories(staticDir string) error {
 			// Parse and execute the tags templates.
 			// If we are generating the tags files, disable vulnerability links in the
 			// templates since they won't go anywhere without a server side component.
-			b, err := rc.generateTagsTemplate(repo, false)
+			b, err := rc.generateTagsTemplate(ctx, repo, false)
 			if err != nil {
 				logrus.Warnf("generating tags template for repo %q failed: %v", repo, err)
 			}
@@ -156,7 +157,7 @@ func (rc *registryController) tagsHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Generate the tags template.
-	b, err := rc.generateTagsTemplate(repo, rc.cl != nil)
+	b, err := rc.generateTagsTemplate(context.TODO(), repo, rc.cl != nil)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":   "tags",
@@ -173,9 +174,9 @@ func (rc *registryController) tagsHandler(w http.ResponseWriter, r *http.Request
 	fmt.Fprint(w, string(b))
 }
 
-func (rc *registryController) generateTagsTemplate(repo string, hasVulns bool) ([]byte, error) {
+func (rc *registryController) generateTagsTemplate(ctx context.Context, repo string, hasVulns bool) ([]byte, error) {
 	// Get the tags from the server.
-	tags, err := rc.reg.Tags(repo)
+	tags, err := rc.reg.Tags(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("getting tags for %s failed: %v", repo, err)
 	}
@@ -196,7 +197,7 @@ func (rc *registryController) generateTagsTemplate(repo string, hasVulns bool) (
 
 	for _, tag := range tags {
 		// get the manifest
-		m1, err := rc.reg.ManifestV1(repo, tag)
+		m1, err := rc.reg.ManifestV1(ctx, repo, tag)
 		if err != nil {
 			return nil, fmt.Errorf("getting v1 manifest for %s:%s failed: %v", repo, tag, err)
 		}
@@ -260,15 +261,31 @@ func (rc *registryController) vulnerabilitiesHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	result, err := rc.cl.Vulnerabilities(rc.reg, repo, tag)
+	image, err := registry.ParseImage(rc.reg.Domain + "/" + repo + ":" + tag)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"func":   "vulnerabilities",
 			"URL":    r.URL,
 			"method": r.Method,
-		}).Errorf("vulnerability scanning for %s:%s failed: %v", repo, tag, err)
+		}).Errorf("parsing image %s:%s failed: %v", repo, tag, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	// Get the vulnerability report.
+	result, err := rc.cl.VulnerabilitiesV3(context.TODO(), rc.reg, image.Path, image.Reference())
+	if err != nil {
+		// Fallback to Clair v2 API.
+		result, err = rc.cl.Vulnerabilities(context.TODO(), rc.reg, image.Path, image.Reference())
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"func":   "vulnerabilities",
+				"URL":    r.URL,
+				"method": r.Method,
+			}).Errorf("vulnerability scanning for %s:%s failed: %v", repo, tag, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if strings.HasSuffix(r.URL.String(), ".json") {

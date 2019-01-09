@@ -517,34 +517,46 @@
 			"revisionTime": "2018-07-24T15:21:57Z"
 		},
 		{
-			"checksumSHA1": "/eNgKeKtLqQfcESRx3Gf2Wd+ZVo=",
+			"checksumSHA1": "c00zAp0DFcTif2BKvxoxNTw9RxE=",
 			"path": "github.com/genuinetools/reg",
-			"revision": "809456d47e29cdd5703d358f3d2d6c65c78b684a",
-			"revisionTime": "2018-09-06T12:51:32Z"
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
 		},
 		{
-			"checksumSHA1": "fxlgnulVyvp3U+IQqWTE++KrwbU=",
+			"checksumSHA1": "JiDusQiD/S25SPzG0iTLJffMRmk=",
 			"path": "github.com/genuinetools/reg/clair",
-			"revision": "809456d47e29cdd5703d358f3d2d6c65c78b684a",
-			"revisionTime": "2018-09-06T12:51:32Z"
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
 		},
 		{
-			"checksumSHA1": "cqzabBOXEHCS7F09i0PIUioiQnk=",
+			"checksumSHA1": "OIgvwDlWMeuAmHQJtL3+EZqLOYg=",
+			"path": "github.com/genuinetools/reg/internal/binutils/static",
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
+		},
+		{
+			"checksumSHA1": "YwGX7VCSV3USeUuRIVg/AHcYRjM=",
+			"path": "github.com/genuinetools/reg/internal/binutils/templates",
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
+		},
+		{
+			"checksumSHA1": "ts7+Pr3Hj8Z8Z4vKTbsgaus8pJA=",
 			"path": "github.com/genuinetools/reg/registry",
-			"revision": "d25a2c83ae5414c8a72f2e1ab96529fb1744fe26",
-			"revisionTime": "2018-06-18T13:53:47Z"
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
 		},
 		{
-			"checksumSHA1": "EsmWJ2EQDZKet+VHx5XanvUB2bI=",
+			"checksumSHA1": "dtqKOM1G2lHbBaWAm1snHFTVoVI=",
 			"path": "github.com/genuinetools/reg/repoutils",
-			"revision": "d25a2c83ae5414c8a72f2e1ab96529fb1744fe26",
-			"revisionTime": "2018-06-18T13:53:47Z"
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
 		},
 		{
 			"checksumSHA1": "cONsglnHxbrBHi5p52QJ48HuycA=",
 			"path": "github.com/genuinetools/reg/version",
-			"revision": "809456d47e29cdd5703d358f3d2d6c65c78b684a",
-			"revisionTime": "2018-09-06T12:51:32Z"
+			"revision": "d959057b30da67d5f162790f9d5b5160686901fd",
+			"revisionTime": "2019-01-02T16:55:23Z"
 		},
 		{
 			"checksumSHA1": "ImX1uv6O09ggFeBPUJJ2nu7MPSA=",
@@ -1170,6 +1182,24 @@
 			"path": "github.com/sergi/go-diff/diffmatchpatch",
 			"revision": "feef008d51ad2b3778f85d387ccf91735543008d",
 			"revisionTime": "2017-04-09T07:17:39Z"
+		},
+		{
+			"checksumSHA1": "vyWPAvwUBwCNHHNHg4XDIhx7hwE=",
+			"path": "github.com/shurcooL/httpfs/html/vfstemplate",
+			"revision": "74dc9339e414ad069a8d04bba7e7aafd08043a25",
+			"revisionTime": "2018-12-22T20:10:58Z"
+		},
+		{
+			"checksumSHA1": "CUk9pxgjZYpqKdHR0EjXUkm4U/Y=",
+			"path": "github.com/shurcooL/httpfs/path/vfspath",
+			"revision": "74dc9339e414ad069a8d04bba7e7aafd08043a25",
+			"revisionTime": "2018-12-22T20:10:58Z"
+		},
+		{
+			"checksumSHA1": "fhngc51BJ8gGzM5b8BpSuWjCLao=",
+			"path": "github.com/shurcooL/httpfs/vfsutil",
+			"revision": "74dc9339e414ad069a8d04bba7e7aafd08043a25",
+			"revisionTime": "2018-12-22T20:10:58Z"
 		},
 		{
 			"checksumSHA1": "/YsxkUA+LSSCvK4zVU7Oa3s0470=",

@@ -12,8 +12,11 @@ import (
 	"time"
 
 	"github.com/genuinetools/reg/clair"
+	"github.com/genuinetools/reg/internal/binutils/static"
+	"github.com/genuinetools/reg/internal/binutils/templates"
 	"github.com/gorilla/mux"
 	wordwrap "github.com/mitchellh/go-wordwrap"
+	"github.com/shurcooL/httpfs/html/vfstemplate"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,7 +61,7 @@ type serverCommand struct {
 
 func (cmd *serverCommand) Run(ctx context.Context, args []string) error {
 	// Create the registry client.
-	r, err := createRegistryClient(cmd.registryServer)
+	r, err := createRegistryClient(ctx, cmd.registryServer)
 	if err != nil {
 		return err
 	}
@@ -92,19 +95,6 @@ func (cmd *serverCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	staticDir := filepath.Join(assetDir, "static")
-	templateDir := filepath.Join(assetDir, "templates")
-	// Make sure all the paths exist.
-	tmplPaths := []string{
-		staticDir,
-		filepath.Join(templateDir, "vulns.html"),
-		filepath.Join(templateDir, "repositories.html"),
-		filepath.Join(templateDir, "tags.html"),
-	}
-	for _, path := range tmplPaths {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return fmt.Errorf("template %s not found", path)
-		}
-	}
 
 	funcMap := template.FuncMap{
 		"trim": func(s string) string {
@@ -132,11 +122,12 @@ func (cmd *serverCommand) Run(ctx context.Context, args []string) error {
 		},
 	}
 
-	rc.tmpl = template.Must(template.New("").Funcs(funcMap).ParseGlob(templateDir + "/*.html"))
+	rc.tmpl = template.New("").Funcs(funcMap)
+	rc.tmpl = template.Must(vfstemplate.ParseGlob(templates.Assets, rc.tmpl, "*.html"))
 
 	// Create the initial index.
 	logrus.Info("creating initial static index")
-	if err := rc.repositories(staticDir); err != nil {
+	if err := rc.repositories(ctx, staticDir); err != nil {
 		return fmt.Errorf("creating index failed: %v", err)
 	}
 
@@ -151,7 +142,7 @@ func (cmd *serverCommand) Run(ctx context.Context, args []string) error {
 		// Create more indexes every X minutes based off interval.
 		for range ticker.C {
 			logrus.Info("creating timer based static index")
-			if err := rc.repositories(staticDir); err != nil {
+			if err := rc.repositories(ctx, staticDir); err != nil {
 				logrus.Warnf("creating static index failed: %v", err)
 			}
 		}
@@ -176,8 +167,9 @@ func (cmd *serverCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	// Serve the static assets.
+	staticAssetsHandler := http.FileServer(static.Assets)
+	mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticAssetsHandler))
 	staticHandler := http.FileServer(http.Dir(staticDir))
-	mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticHandler))
 	mux.Handle("/", staticHandler)
 
 	// Set up the server.
