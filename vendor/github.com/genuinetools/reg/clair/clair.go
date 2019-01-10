@@ -1,6 +1,7 @@
 package clair
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Clair defines the client for retriving information from the clair API.
+// Clair defines the client for retrieving information from the clair API.
 type Clair struct {
 	URL      string
 	Client   *http.Client
@@ -81,15 +82,24 @@ func New(url string, opt Opt) (*Clair, error) {
 	return registry, nil
 }
 
-// url returns a clair URL with the passed arguements concatenated.
+// Close closes the gRPC connection
+func (c *Clair) Close() error {
+	return c.grpcConn.Close()
+}
+
+// url returns a clair URL with the passed arguments concatenated.
 func (c *Clair) url(pathTemplate string, args ...interface{}) string {
 	pathSuffix := fmt.Sprintf(pathTemplate, args...)
 	url := fmt.Sprintf("%s%s", c.URL, pathSuffix)
 	return url
 }
 
-func (c *Clair) getJSON(url string, response interface{}) (http.Header, error) {
-	resp, err := c.Client.Get(url)
+func (c *Clair) getJSON(ctx context.Context, url string, response interface{}) (http.Header, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

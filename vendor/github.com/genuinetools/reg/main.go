@@ -24,12 +24,14 @@ var (
 
 	timeout time.Duration
 
+	authURL  string
 	username string
 	password string
 
 	debug bool
 )
 
+//go:generate go run internal/binutils/generate.go
 func main() {
 	// Create a new cli program.
 	p := cli.NewProgram()
@@ -63,6 +65,8 @@ func main() {
 
 	p.FlagSet.DurationVar(&timeout, "timeout", time.Minute, "timeout for HTTP requests")
 
+	p.FlagSet.StringVar(&authURL, "auth-url", "", "alternate URL for registry authentication (ex. auth.docker.io)")
+
 	p.FlagSet.StringVar(&username, "username", "", "username for the registry")
 	p.FlagSet.StringVar(&username, "u", "", "username for the registry")
 
@@ -74,7 +78,7 @@ func main() {
 	// Set the before function.
 	p.Before = func(ctx context.Context) error {
 		// On ^C, or SIGTERM handle exit.
-		signals := make(chan os.Signal, 0)
+		signals := make(chan os.Signal)
 		signal.Notify(signals, os.Interrupt)
 		signal.Notify(signals, syscall.SIGTERM)
 		_, cancel := context.WithCancel(ctx)
@@ -98,22 +102,31 @@ func main() {
 	p.Run()
 }
 
-func createRegistryClient(domain string) (*registry.Registry, error) {
-	auth, err := repoutils.GetAuthConfig(username, password, domain)
+func createRegistryClient(ctx context.Context, domain string) (*registry.Registry, error) {
+	// Use the auth-url domain if provided.
+	authDomain := authURL
+	if authDomain == "" {
+		authDomain = domain
+	}
+	auth, err := repoutils.GetAuthConfig(username, password, authDomain)
 	if err != nil {
 		return nil, err
 	}
 
 	// Prevent non-ssl unless explicitly forced
 	if !forceNonSSL && strings.HasPrefix(auth.ServerAddress, "http:") {
-		return nil, fmt.Errorf("Attempted to use insecure protocol! Use force-non-ssl option to force")
+		return nil, fmt.Errorf("attempted to use insecure protocol! Use force-non-ssl option to force")
 	}
 
 	// Create the registry client.
-	return registry.New(auth, registry.Opt{
+	logrus.Infof("domain: %s", domain)
+	logrus.Infof("server address: %s", auth.ServerAddress)
+	return registry.New(ctx, auth, registry.Opt{
+		Domain:   domain,
 		Insecure: insecure,
 		Debug:    debug,
 		SkipPing: skipPing,
+		NonSSL:   forceNonSSL,
 		Timeout:  timeout,
 	})
 }

@@ -17,6 +17,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/genuinetools/reg/registry"
@@ -124,6 +125,9 @@ type registryResolver struct {
 }
 
 func (r *registryResolver) Resolve(n *ImageName) error {
+	// TODO: get context from caller.
+	ctx := context.Background()
+
 	if n.Digest != "" {
 		// Already has explicit digest
 		return nil
@@ -144,12 +148,12 @@ func (r *registryResolver) Resolve(n *ImageName) error {
 		return fmt.Errorf("unable to get auth config for registry: %v", err)
 	}
 
-	c, err := registry.New(auth, r.opt)
+	c, err := registry.New(ctx, auth, r.opt)
 	if err != nil {
 		return fmt.Errorf("unable to create registry client: %v", err)
 	}
 
-	digest, err := c.Digest(img)
+	digest, err := c.Digest(ctx, img)
 	if err != nil {
 		return fmt.Errorf("unable to get digest from the registry: %v", err)
 	}
