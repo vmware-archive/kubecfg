@@ -25,7 +25,7 @@ GOFMT ?= gofmt
 GINKGO ?= ginkgo
 GO_BINDATA ?= go-bindata
 
-JSONNET_FILES = testdata/kubecfg_test.jsonnet examples/guestbook.jsonnet
+JSONNET_FILES = testdata/kubecfg_test.jsonnet examples/guestbook.jsonnet testdata/import_test.jsonnet
 # TODO: Simplify this once ./... ignores ./vendor
 GO_PACKAGES = ./cmd/... ./utils/... ./pkg/...
 

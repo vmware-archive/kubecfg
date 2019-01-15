@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elazarl/go-bindata-assetfs"
+	assetfs "github.com/elazarl/go-bindata-assetfs"
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 )
@@ -81,60 +81,65 @@ func MakeUniversalImporter(searchUrls []*url.URL) jsonnet.Importer {
 	return &universalImporter{
 		BaseSearchURLs: searchUrls,
 		HTTPClient:     &http.Client{Transport: t},
+		cache:          map[string]jsonnet.Contents{},
 	}
 }
 
 type universalImporter struct {
 	BaseSearchURLs []*url.URL
 	HTTPClient     *http.Client
+	cache          map[string]jsonnet.Contents
 }
 
-func (importer *universalImporter) Import(dir, importedPath string) (*jsonnet.ImportedData, error) {
+func (importer *universalImporter) Import(dir, importedPath string) (jsonnet.Contents, string, error) {
 	log.Debugf("Importing %q from %q", importedPath, dir)
 
 	candidateURLs, err := importer.expandImportToCandidateURLs(dir, importedPath)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get candidate URLs for when importing %s (import dir is %s)", importedPath, dir)
+		return jsonnet.Contents{}, "", fmt.Errorf("Could not get candidate URLs for when importing %s (import dir is %s)", importedPath, dir)
 	}
 
 	var tried []string
 	for _, u := range candidateURLs {
-		tried = append(tried, u.String())
-		importedData, err := importer.tryImport(u)
+		foundAt := u.String()
+		if c, ok := importer.cache[foundAt]; ok {
+			return c, foundAt, nil
+		}
+
+		tried = append(tried, foundAt)
+		importedData, err := importer.tryImport(foundAt)
 		if err == nil {
-			return importedData, nil
+			importer.cache[foundAt] = importedData
+			return importedData, foundAt, nil
 		} else if err != errNotFound {
-			return nil, err
+			return jsonnet.Contents{}, "", err
 		}
 	}
 
-	return nil, fmt.Errorf("Couldn't open import %q, no match locally or in library search paths. Tried: %s",
+	return jsonnet.Contents{}, "", fmt.Errorf("Couldn't open import %q, no match locally or in library search paths. Tried: %s",
 		importedPath,
 		strings.Join(tried, ";"),
 	)
 }
 
-func (importer *universalImporter) tryImport(url *url.URL) (*jsonnet.ImportedData, error) {
-	res, err := importer.HTTPClient.Get(url.String())
+func (importer *universalImporter) tryImport(url string) (jsonnet.Contents, error) {
+	res, err := importer.HTTPClient.Get(url)
 	if err != nil {
-		return nil, err
+		return jsonnet.Contents{}, err
 	}
 	defer res.Body.Close()
-	log.Debugf("GET %s -> %s", url, res.Status)
+	log.Debugf("GET %q -> %s", url, res.Status)
 	if res.StatusCode == http.StatusNotFound {
-		return nil, errNotFound
+		return jsonnet.Contents{}, errNotFound
 	} else if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error reading content: %s", res.Status)
+		return jsonnet.Contents{}, fmt.Errorf("error reading content: %s", res.Status)
 	}
 
 	bodyBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return jsonnet.Contents{}, err
 	}
-	return &jsonnet.ImportedData{
-		FoundHere: url.String(),
-		Content:   string(bodyBytes),
-	}, nil
+	return jsonnet.MakeContents(string(bodyBytes)), nil
 }
 
 func (importer *universalImporter) expandImportToCandidateURLs(dir, importedPath string) ([]*url.URL, error) {
