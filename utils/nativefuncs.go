@@ -44,6 +44,7 @@ func resolveImage(resolver Resolver, image string) (string, error) {
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
 func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
+	// TODO(mkm): go-jsonnet 0.12.x now contains native std.parseJson; deprecate and remove this one.
 	vm.NativeFunction(&jsonnet.NativeFunction{
 		Name:   "parseJson",
 		Params: []jsonnetAst.Identifier{"json"},
