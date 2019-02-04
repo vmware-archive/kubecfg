@@ -4,8 +4,6 @@ go:
   # NB: order matters - matrix items that don't specify will use the
   # first value (ditto for `os` below)
   - 1.11.x
-  - 1.9.x
-  - 1.8.x
 
 os:
   - linux
@@ -62,6 +60,7 @@ script:
   - make generate
   - |
     if ! git diff --exit-code --name-only; then
+      git diff
       echo 'Run "make generate" and add generated changes to this PR'
       exit 1
     fi

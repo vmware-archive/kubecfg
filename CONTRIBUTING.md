@@ -9,8 +9,27 @@ modified the input files.
 
 ## Managing vendor/
 
-This project uses `govendor`.  To make things easier for reviewers,
-put updates to `vendor/` in a separate commit within the same PR.
+TL;DR: run `make vendor` whenever you add/remove a dependenciy. run `GO111MODULE=on go get -u .....` to update deps.
+
+This project uses `go mod`, Go modules feature implemented since Go 1.11. This feature is turned on automatically if you checkout the `kubecfg` repo anywhere in the filesystem, except for it's canonical location in the GOPATH (i.e. $GOPATH/github.com/ksonnet/kubecfg); in that case the feature has to be turned on explicitly via the `GO111MODULE` env variable.
+
+Go modules can be used directly/implicitly or in a backwards compatible way through vendoring.
+
+This repository is configured to use Go modules as a source of truth for dependency information,
+but to rely on vendoring to resolve the dependencies during build.
+
+It's thus possible to build `kubecfg` directly with `go build` if the repo is checked out in the GOPATH (which makes it `go get`table too), or when it's checked out outside the GOPATH.
+
+In order to make sure that the `vendor/` directory is kept up to date, the `Makefile`
+instructs `go build` to consume the modules from the vendored directory (via `-mod=vendor` flag) as opposed to fetching the modules in the user's cache. That flag is available only if GO111MODULE is turned on, but effectvely turns the build into a legacy pre-Go-modules build.
+
+If you're familiar with Go modules, feel free to build `kubecfg` with go build or test directly, but please check in vendored repository (the CI build will likely catch you if you forgret):
+
+```
+$ make vendor
+```
+
+To make things easier for reviewers, put updates to `vendor/` in a separate commit within the same PR if possible.
 
 ### Clean up removed/unnecessary dependencies
 
