@@ -9,11 +9,10 @@ modified the input files.
 
 ## Managing vendor/
 
-TL;DR: run `make vendor` whenever you add/remove a dependenciy. run `GO111MODULE=on go get -u .....` to update deps.
+TL;DR: run `make vendor` whenever you add/remove a dependency. run `GO111MODULE=on go get -u .....` to update deps.
 
-This project uses `go mod`, Go modules feature implemented since Go 1.11. This feature is turned on automatically if you checkout the `kubecfg` repo anywhere in the filesystem, except for it's canonical location in the GOPATH (i.e. $GOPATH/github.com/ksonnet/kubecfg); in that case the feature has to be turned on explicitly via the `GO111MODULE` env variable.
+This project uses `go mod`, Go modules feature implemented since Go 1.11. This feature needs to be turned on explicitly via the `GO111MODULE` env variable, if you checkout the `kubecfg` repo in its canonical location in the GOPATH (i.e. $GOPATH/github.com/ksonnet/kubecfg).  This feature is turned on _automatically_ if you checkout the `kubecfg` repo anywhere else in the filesystem.
 
-Go modules can be used directly/implicitly or in a backwards compatible way through vendoring.
 
 This repository is configured to use Go modules as a source of truth for dependency information,
 but to rely on vendoring to resolve the dependencies during build.
@@ -23,7 +22,7 @@ It's thus possible to build `kubecfg` directly with `go build` if the repo is ch
 In order to make sure that the `vendor/` directory is kept up to date, the `Makefile`
 instructs `go build` to consume the modules from the vendored directory (via `-mod=vendor` flag) as opposed to fetching the modules in the user's cache. That flag is available only if GO111MODULE is turned on, but effectvely turns the build into a legacy pre-Go-modules build.
 
-If you're familiar with Go modules, feel free to build `kubecfg` with go build or test directly, but please check in vendored repository (the CI build will likely catch you if you forgret):
+If you're familiar with Go modules, feel free to build `kubecfg` with go build or test directly, but please check in vendored repository (the CI build will likely catch you if you forget):
 
 ```
 $ make vendor
