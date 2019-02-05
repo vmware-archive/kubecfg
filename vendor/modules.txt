@@ -397,5 +397,5 @@ k8s.io/client-go/third_party/forked/golang/template
 # k8s.io/kube-openapi v0.0.0-20180509051136-39cb288412c4
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubernetes v0.0.0-20180525183315-8306b0b1a491
+# k8s.io/kubernetes v1.10.3
 k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi
