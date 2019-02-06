@@ -16,7 +16,7 @@
 VERSION ?= dev-$(shell date +%FT%T%z)
 
 GO ?= go
-GO_FLAGS ?=
+GO_FLAGS ?= -mod=vendor
 GO_LDFLAGS ?=
 GO_TESTFLAGS ?= -race
 GO_BUILDFLAGS ?= -tags netgo -installsuffix netgo -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
@@ -26,8 +26,10 @@ GINKGO ?= ginkgo
 GO_BINDATA ?= go-bindata
 
 JSONNET_FILES = testdata/kubecfg_test.jsonnet examples/guestbook.jsonnet testdata/import_test.jsonnet
-# TODO: Simplify this once ./... ignores ./vendor
-GO_PACKAGES = ./cmd/... ./utils/... ./pkg/...
+GO_PACKAGES = ./...
+
+# forces go modules regardless of where the source code is checked out
+export GO111MODULE = on
 
 # Default cluster from this config is used for integration tests
 KUBECONFIG ?= $(HOME)/.kube/config
@@ -58,8 +60,12 @@ vet:
 fmt:
 	$(GOFMT) -s -w $(shell $(GO) list -f '{{.Dir}}' $(GO_PACKAGES))
 
+vendor:
+	$(GO) mod tidy -v
+	$(GO) mod vendor
+
 clean:
 	$(RM) ./kubecfg
 
-.PHONY: all test clean vet fmt
+.PHONY: all test clean vet fmt vendor
 .PHONY: kubecfg
