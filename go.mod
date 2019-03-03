@@ -1,7 +1,7 @@
 module github.com/ksonnet/kubecfg
 
 require (
-	github.com/Azure/go-autorest v9.4.0+incompatible // indirect
+	github.com/Azure/go-autorest v11.0.0+incompatible // indirect
 	github.com/PuerkitoBio/purell v0.0.0-20170324134132-b938d81255b5 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170324140228-bbf7a2afc14f // indirect
 	github.com/dgrijalva/jwt-go v3.1.0+incompatible // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc // indirect
 	github.com/imdario/mergo v0.0.0-20170326204527-d806ba8c2177 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/json-iterator/go v0.0.0-20180227044048-2a93f9003e4f // indirect
+	github.com/json-iterator/go v0.0.0-20180701071628-ab8a2e0c74be // indirect
 	github.com/mailru/easyjson v0.0.0-20170426073802-3f09c2282fc5 // indirect
 	github.com/mattn/go-isatty v0.0.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -35,7 +35,6 @@ require (
 	github.com/spf13/cobra v0.0.0-20180319062004-c439c4fa0937
 	github.com/spf13/pflag v0.0.0-20180220143236-ee5fd03fd6ac // indirect
 	github.com/stretchr/testify v1.2.2
-	github.com/v2pro/plz v0.0.0-20180227121118-d55f7f1d4903 // indirect
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
 	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/yaml.v2 v2.2.1
