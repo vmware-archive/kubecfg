@@ -25,6 +25,8 @@ require (
 	github.com/json-iterator/go v0.0.0-20180227044048-2a93f9003e4f // indirect
 	github.com/mailru/easyjson v0.0.0-20170426073802-3f09c2282fc5 // indirect
 	github.com/mattn/go-isatty v0.0.2
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -37,8 +39,8 @@ require (
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
 	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/yaml.v2 v2.2.1
-	k8s.io/api v0.0.0-20190301173355-16f65c82b8fa
-	k8s.io/apimachinery v0.0.0-20180515182440-31dade610c05
+	k8s.io/api v0.0.0-20190222213804-5cb15d344471
+	k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
 	k8s.io/client-go v2.0.0-alpha.0.0.20190228174230-b40b2a5939e4+incompatible
 	k8s.io/klog v0.2.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20180509051136-39cb288412c4
