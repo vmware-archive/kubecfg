@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/ksonnet/kubecfg/utils"
 )
@@ -53,7 +52,7 @@ const (
 
 // UpdateCmd represents the update subcommand
 type UpdateCmd struct {
-	ClientPool       dynamic.ClientPool
+	ClientPool       *utils.ClientPool
 	Discovery        discovery.DiscoveryInterface
 	DefaultNamespace string
 
@@ -88,7 +87,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
 		log.Info("Updating ", desc, dryRunText)
 
-		rc, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		rc, subresources, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
 		if err != nil {
 			return err
 		}
@@ -99,7 +98,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		}
 		var newobj metav1.Object
 		if !c.DryRun {
-			newobj, err = rc.Patch(obj.GetName(), types.MergePatchType, asPatch)
+			newobj, err = rc.Patch(obj.GetName(), types.MergePatchType, asPatch, metav1.UpdateOptions{}, subresources...)
 			log.Debugf("Patch(%s) returned (%v, %v)", obj.GetName(), newobj, err)
 		} else {
 			newobj, err = rc.Get(obj.GetName(), metav1.GetOptions{})
@@ -107,7 +106,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		if c.Create && errors.IsNotFound(err) {
 			log.Info(" Creating non-existent ", desc, dryRunText)
 			if !c.DryRun {
-				newobj, err = rc.Create(obj)
+				newobj, err = rc.Create(obj, metav1.CreateOptions{}, subresources...)
 				log.Debugf("Create(%s) returned (%v, %v)", obj.GetName(), newobj, err)
 			} else {
 				newobj = obj
@@ -173,7 +172,7 @@ func stringListContains(list []string, value string) bool {
 	return false
 }
 
-func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface, version *utils.ServerVersion, o runtime.Object) error {
+func gcDelete(clientpool *utils.ClientPool, disco discovery.DiscoveryInterface, version *utils.ServerVersion, o runtime.Object) error {
 	obj, err := meta.Accessor(o)
 	if err != nil {
 		return fmt.Errorf("Unexpected object type: %s", err)
@@ -195,12 +194,12 @@ func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface,
 		deleteOpts.PropagationPolicy = &fg
 	}
 
-	c, err := utils.ClientForResource(clientpool, disco, o, metav1.NamespaceNone)
+	c, subresources, err := utils.ClientForResource(clientpool, disco, o, metav1.NamespaceNone)
 	if err != nil {
 		return err
 	}
 
-	err = c.Delete(obj.GetName(), &deleteOpts)
+	err = c.Delete(obj.GetName(), &deleteOpts, subresources...)
 	if err != nil && (errors.IsNotFound(err) || errors.IsConflict(err)) {
 		// We lost a race with something else changing the object
 		log.Debugf("Ignoring error while deleting %s: %s", desc, err)
@@ -213,7 +212,7 @@ func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface,
 	return nil
 }
 
-func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
+func walkObjects(pool *utils.ClientPool, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
 	rsrclists, err := disco.ServerResources()
 	if err != nil {
 		return err
@@ -235,14 +234,7 @@ func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, li
 				return err
 			}
 
-			var ns string
-			if rsrc.Namespaced {
-				ns = metav1.NamespaceAll
-			} else {
-				ns = metav1.NamespaceNone
-			}
-
-			rc := client.Resource(&rsrc, ns)
+			rc := client.Resource(gv.WithResource(rsrc.Name))
 			log.Debugf("Listing %s", gvk)
 			obj, err := rc.List(listopts)
 			if err != nil {

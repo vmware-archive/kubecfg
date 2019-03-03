@@ -24,14 +24,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/ksonnet/kubecfg/utils"
 )
 
 // DeleteCmd represents the delete subcommand
 type DeleteCmd struct {
-	ClientPool       dynamic.ClientPool
+	ClientPool       *utils.ClientPool
 	Discovery        discovery.DiscoveryInterface
 	DefaultNamespace string
 
@@ -70,12 +69,12 @@ func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
 		log.Info("Deleting ", desc)
 
-		client, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		client, subresources, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
 		if err != nil {
 			return err
 		}
 
-		err = client.Delete(obj.GetName(), &deleteOpts)
+		err = client.Delete(obj.GetName(), &deleteOpts, subresources...)
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("Error deleting %s: %s", desc, err)
 		}

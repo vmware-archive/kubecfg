@@ -387,7 +387,7 @@ func dumpJSON(v interface{}) string {
 	return string(buf.Bytes())
 }
 
-func restClientPool(cmd *cobra.Command) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
+func restClientPool(cmd *cobra.Command) (*utils.ClientPool, discovery.DiscoveryInterface, error) {
 	conf, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Unable to read kubectl config: %v", err)
@@ -399,9 +399,8 @@ func restClientPool(cmd *cobra.Command) (dynamic.ClientPool, discovery.Discovery
 	}
 
 	discoCache := utils.NewMemcachedDiscoveryClient(disco)
-	mapper := discovery.NewDeferredDiscoveryRESTMapper(discoCache, dynamic.VersionInterfaces)
 	pathresolver := dynamic.LegacyAPIPathResolverFunc
 
-	pool := dynamic.NewClientPool(conf, mapper, pathresolver)
+	pool := utils.NewClientPool(conf, pathresolver)
 	return pool, discoCache, nil
 }
