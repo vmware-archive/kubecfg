@@ -12,8 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apimachinery/registered"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -33,9 +32,10 @@ var kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig 
 var kubecfgBin = flag.String("kubecfg-bin", "kubecfg", "path to kubecfg executable under test")
 
 func init() {
-	if missingVersions := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS")).ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
-		panic(fmt.Sprintf("KUBE_API_VERSIONS contains versions that are not installed: %q.", missingVersions))
-	}
+	// TODO(seh): Restore the side effects we lost here.
+	// if missingVersions := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS")).ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
+	// 	panic(fmt.Sprintf("KUBE_API_VERSIONS contains versions that are not installed: %q.", missingVersions))
+	// }
 }
 
 func clusterConfigOrDie() *rest.Config {
