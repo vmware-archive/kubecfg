@@ -156,7 +156,7 @@ func jsonnetReader(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	pathUrl := &url.URL{Scheme: "file", Path: abs}
+	pathUrl := &url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}
 
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
