@@ -10,13 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	restclient "k8s.io/client-go/rest"
 
 	"github.com/ksonnet/kubecfg/pkg/kubecfg"
-	"github.com/ksonnet/kubecfg/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,28 +20,6 @@ import (
 
 func cmData(cm *v1.ConfigMap) map[string]string {
 	return cm.Data
-}
-
-func restClientPool(conf *restclient.Config) (dynamic.ClientPool, discovery.DiscoveryInterface, error) {
-	disco, err := discovery.NewDiscoveryClientForConfig(conf)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	discoCache := utils.NewMemcachedDiscoveryClient(disco)
-	mapper := discovery.NewDeferredDiscoveryRESTMapper(discoCache, dynamic.VersionInterfaces)
-	pathresolver := dynamic.LegacyAPIPathResolverFunc
-
-	pool := dynamic.NewClientPool(conf, mapper, pathresolver)
-	return pool, discoCache, nil
-}
-
-func restClientPoolOrDie(conf *restclient.Config) (dynamic.ClientPool, discovery.DiscoveryInterface) {
-	p, d, err := restClientPool(conf)
-	if err != nil {
-		panic(err.Error())
-	}
-	return p, d
 }
 
 var _ = Describe("update", func() {

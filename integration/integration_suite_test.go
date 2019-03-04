@@ -13,8 +13,8 @@ import (
 	"testing"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apimachinery/registered"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -31,12 +31,6 @@ import (
 
 var kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 var kubecfgBin = flag.String("kubecfg-bin", "kubecfg", "path to kubecfg executable under test")
-
-func init() {
-	if missingVersions := registered.NewOrDie(os.Getenv("KUBE_API_VERSIONS")).ValidateEnvRequestedVersions(); len(missingVersions) != 0 {
-		panic(fmt.Sprintf("KUBE_API_VERSIONS contains versions that are not installed: %q.", missingVersions))
-	}
-}
 
 func clusterConfigOrDie() *rest.Config {
 	var config *rest.Config
@@ -102,7 +96,8 @@ func runKubecfgWithOutput(flags []string, input []runtime.Object, output io.Writ
 	if err != nil {
 		return err
 	}
-	enc := serializer.NewCodecFactory(scheme.Scheme).LegacyCodec(v1.SchemeGroupVersion)
+	enc := unstructured.JSONFallbackEncoder{serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}.LegacyCodec(v1.SchemeGroupVersion)}
+
 	if err := encodeTo(f, enc, input); err != nil {
 		return err
 	}

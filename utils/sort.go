@@ -19,6 +19,7 @@ import (
 	"sort"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -73,20 +74,20 @@ func containsPodSpec(disco discovery.OpenAPISchemaInterface, gvk schema.GroupVer
 }
 
 // Arbitrary numbers used to do a simple topological sort of resources.
-func depTier(disco ServerResourcesOpenAPISchema, o schema.ObjectKind) (int, error) {
+func depTier(disco discovery.OpenAPISchemaInterface, mapper meta.RESTMapper, o schema.ObjectKind) (int, error) {
 	gvk := o.GroupVersionKind()
 	if gk := gvk.GroupKind(); gk == gkTpr || gk == gkCrd {
 		// Special case: these create other types
 		return 10, nil
 	}
 
-	rsrc, err := serverResourceForGroupVersionKind(disco, gvk)
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		log.Debugf("unable to fetch resource for %s (%v), continuing", gvk, err)
 		return 50, nil
 	}
 
-	if !rsrc.Namespaced {
+	if mapping.Scope.Name() == meta.RESTScopeNameRoot {
 		// Place global before namespaced
 		return 20, nil
 	} else if containsPodSpec(disco, gvk) {
@@ -98,21 +99,15 @@ func depTier(disco ServerResourcesOpenAPISchema, o schema.ObjectKind) (int, erro
 	}
 }
 
-// A subset of discovery.DiscoveryInterface
-type ServerResourcesOpenAPISchema interface {
-	discovery.ServerResourcesInterface
-	discovery.OpenAPISchemaInterface
-}
-
 // DependencyOrder is a `sort.Interface` that *best-effort* sorts the
 // objects so that known dependencies appear earlier in the list.  The
 // idea is to prevent *some* of the "crash-restart" loops when
 // creating inter-dependent resources.
-func DependencyOrder(disco ServerResourcesOpenAPISchema, list []*unstructured.Unstructured) (sort.Interface, error) {
+func DependencyOrder(disco discovery.OpenAPISchemaInterface, mapper meta.RESTMapper, list []*unstructured.Unstructured) (sort.Interface, error) {
 	sortKeys := make([]int, len(list))
 	for i, item := range list {
 		var err error
-		sortKeys[i], err = depTier(disco, item.GetObjectKind())
+		sortKeys[i], err = depTier(disco, mapper, item.GetObjectKind())
 		if err != nil {
 			return nil, err
 		}

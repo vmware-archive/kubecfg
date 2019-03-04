@@ -3,12 +3,10 @@ package utils
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	ktesting "k8s.io/client-go/testing"
 )
 
 func TestParseVersion(t *testing.T) {
@@ -109,32 +107,20 @@ func TestResourceNameFor(t *testing.T) {
 		},
 	}
 
-	fake := &ktesting.Fake{
-		Resources: []*metav1.APIResourceList{
-			{
-				GroupVersion: "tests/v1alpha1",
-				APIResources: []metav1.APIResource{
-					{
-						Name: "tests",
-						Kind: "Test",
-					},
-				},
-			},
-		},
-	}
-	disco := &fakediscovery.FakeDiscovery{Fake: fake}
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{})
+	mapper.Add(schema.GroupVersionKind{Group: "tests", Version: "v1alpha1", Kind: "Test"}, meta.RESTScopeNamespace)
 
-	if n := ResourceNameFor(disco, obj); n != "tests" {
+	if n := ResourceNameFor(mapper, obj); n != "tests" {
 		t.Errorf("Got resource name %q for %v", n, obj)
 	}
 
 	obj.SetKind("Unknown")
-	if n := ResourceNameFor(disco, obj); n != "unknown" {
+	if n := ResourceNameFor(mapper, obj); n != "unknown" {
 		t.Errorf("Got resource name %q for %v", n, obj)
 	}
 
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "unknown", Version: "noversion", Kind: "SomeKind"})
-	if n := ResourceNameFor(disco, obj); n != "somekind" {
+	if n := ResourceNameFor(mapper, obj); n != "somekind" {
 		t.Errorf("Got resource name %q for %v", n, obj)
 	}
 }

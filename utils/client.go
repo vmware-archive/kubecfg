@@ -20,11 +20,9 @@ import (
 	"sync"
 
 	"github.com/googleapis/gnostic/OpenAPIv2"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -91,15 +89,15 @@ func (c *memcachedDiscoveryClient) ServerResourcesForGroupVersion(groupVersion s
 }
 
 func (c *memcachedDiscoveryClient) ServerResources() ([]*metav1.APIResourceList, error) {
-	return c.cl.ServerResources()
+	return discovery.ServerResources(c)
 }
 
 func (c *memcachedDiscoveryClient) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
-	return c.cl.ServerPreferredResources()
+	return discovery.ServerPreferredResources(c)
 }
 
 func (c *memcachedDiscoveryClient) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
-	return c.cl.ServerPreferredNamespacedResources()
+	return discovery.ServerPreferredNamespacedResources(c)
 }
 
 func (c *memcachedDiscoveryClient) ServerVersion() (*version.Info, error) {
@@ -126,45 +124,30 @@ func (c *memcachedDiscoveryClient) OpenAPISchema() (*openapi_v2.Document, error)
 var _ discovery.CachedDiscoveryInterface = &memcachedDiscoveryClient{}
 
 // ClientForResource returns the ResourceClient for a given object
-func ClientForResource(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, obj runtime.Object, defNs string) (dynamic.ResourceInterface, error) {
+func ClientForResource(client dynamic.Interface, mapper meta.RESTMapper, obj runtime.Object, defNs string) (dynamic.ResourceInterface, error) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 
-	client, err := pool.ClientForGroupVersionKind(gvk)
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	resource, err := serverResourceForGroupVersionKind(disco, gvk)
-	if err != nil {
-		return nil, err
-	}
+	rc := client.Resource(mapping.Resource)
 
-	meta, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, err
-	}
-	namespace := meta.GetNamespace()
-	if namespace == "" {
-		namespace = defNs
-	}
-
-	log.Debugf("Fetching client for %s namespace=%s", resource, namespace)
-	rc := client.Resource(resource, namespace)
-	return rc, nil
-}
-
-func serverResourceForGroupVersionKind(disco discovery.ServerResourcesInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
-	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch resource description for %s: %v", gvk.GroupVersion(), err)
-	}
-
-	for _, r := range resources.APIResources {
-		if r.Kind == gvk.Kind {
-			log.Debugf("Using resource '%s' for %s", r.Name, gvk)
-			return &r, nil
+	switch mapping.Scope.Name() {
+	case meta.RESTScopeNameRoot:
+		return rc, nil
+	case meta.RESTScopeNameNamespace:
+		meta, err := meta.Accessor(obj)
+		if err != nil {
+			return nil, err
 		}
+		namespace := meta.GetNamespace()
+		if namespace == "" {
+			namespace = defNs
+		}
+		return rc.Namespace(namespace), nil
+	default:
+		return nil, fmt.Errorf("unexpected resource scope %q", mapping.Scope)
 	}
-
-	return nil, fmt.Errorf("Server is unable to handle %s", gvk)
 }
