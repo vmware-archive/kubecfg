@@ -171,10 +171,12 @@ func (f *logFormatter) Format(e *log.Entry) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// NB: `path` is assumed to be in native-OS path separator form
 func dirURL(path string) *url.URL {
-	if path[len(path)-1] != filepath.Separator {
+	path = filepath.ToSlash(path)
+	if path[len(path)-1] != '/' {
 		// trailing slash is important
-		path = path + string(filepath.Separator)
+		path = path + "/"
 	}
 	return &url.URL{Scheme: "file", Path: path}
 }
