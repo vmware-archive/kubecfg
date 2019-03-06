@@ -21,16 +21,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"regexp"
+	"sort"
 
 	isatty "github.com/mattn/go-isatty"
-	log "github.com/sirupsen/logrus"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/ksonnet/kubecfg/utils"
@@ -43,8 +43,8 @@ var DiffLineStart = regexp.MustCompile("(^|\n)(.)")
 
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
-	ClientPool       dynamic.ClientPool
-	Discovery        discovery.DiscoveryInterface
+	Client           dynamic.Interface
+	Mapper           meta.RESTMapper
 	DefaultNamespace string
 
 	DiffStrategy string
@@ -56,10 +56,10 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 	dmp := diffmatchpatch.New()
 	diffFound := false
 	for _, obj := range apiObjects {
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
+		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Mapper, obj), utils.FqName(obj))
 		log.Debug("Fetching ", desc)
 
-		client, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		client, err := utils.ClientForResource(c.Client, c.Mapper, obj, c.DefaultNamespace)
 		if err != nil {
 			return err
 		}
@@ -120,13 +120,21 @@ func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool) string {
 
 		switch diff.Type {
 		case diffmatchpatch.DiffInsert:
-			if color { _, _ = buff.WriteString("\x1b[32m") }
+			if color {
+				_, _ = buff.WriteString("\x1b[32m")
+			}
 			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1+ $2"))
-			if color { _, _ = buff.WriteString("\x1b[0m") }
+			if color {
+				_, _ = buff.WriteString("\x1b[0m")
+			}
 		case diffmatchpatch.DiffDelete:
-			if color { _, _ = buff.WriteString("\x1b[31m") }
+			if color {
+				_, _ = buff.WriteString("\x1b[31m")
+			}
 			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1- $2"))
-			if color { _, _ = buff.WriteString("\x1b[0m") }
+			if color {
+				_, _ = buff.WriteString("\x1b[0m")
+			}
 		case diffmatchpatch.DiffEqual:
 			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1  $2"))
 		}

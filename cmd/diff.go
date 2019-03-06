@@ -43,7 +43,7 @@ var diffCmd = &cobra.Command{
 			return err
 		}
 
-		c.ClientPool, c.Discovery, err = restClientPool(cmd)
+		c.Client, c.Mapper, _, err = getDynamicClients(cmd)
 		if err != nil {
 			return err
 		}

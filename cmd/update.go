@@ -73,7 +73,7 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		c.ClientPool, c.Discovery, err = restClientPool(cmd)
+		c.Client, c.Mapper, c.Discovery, err = getDynamicClients(cmd)
 		if err != nil {
 			return err
 		}
@@ -90,6 +90,7 @@ var updateCmd = &cobra.Command{
 
 		if validate {
 			v := kubecfg.ValidateCmd{
+				Mapper:    c.Mapper,
 				Discovery: c.Discovery,
 			}
 

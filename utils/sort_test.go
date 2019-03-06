@@ -16,7 +16,6 @@
 package utils
 
 import (
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -26,92 +25,72 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
+	fakedisco "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/restmapper"
 	ktesting "k8s.io/client-go/testing"
 )
 
 type FakeDiscovery struct {
-	Fake     *ktesting.Fake
-	delegate discovery.OpenAPISchemaInterface
+	fakedisco.FakeDiscovery
+	schemaGetter discovery.OpenAPISchemaInterface
 }
 
-func NewFakeDiscovery(delegate discovery.OpenAPISchemaInterface) *FakeDiscovery {
+func NewFakeDiscovery(schemaGetter discovery.OpenAPISchemaInterface) *FakeDiscovery {
 	fakePtr := &ktesting.Fake{}
 	return &FakeDiscovery{
-		Fake:     fakePtr,
-		delegate: delegate,
+		FakeDiscovery: fakedisco.FakeDiscovery{Fake: fakePtr},
+		schemaGetter:  schemaGetter,
 	}
 }
-
-var _ discovery.ServerResourcesInterface = &FakeDiscovery{}
-
-func (c *FakeDiscovery) ServerResourcesForGroupVersion(gv string) (*metav1.APIResourceList, error) {
-	parsedGv, err := schema.ParseGroupVersion(gv)
-	if err != nil {
-		return nil, err
-	}
-	action := ktesting.ActionImpl{}
-	action.Verb = "get"
-	action.Resource = parsedGv.WithResource("apiresources")
-	c.Fake.Invokes(action, nil)
-
-	var rsrcs []metav1.APIResource
-	switch gv {
-	case "v1":
-		rsrcs = []metav1.APIResource{
-			{
-				Name:       "configmaps",
-				Kind:       "ConfigMap",
-				Namespaced: true,
-			},
-			{
-				Name:       "namespaces",
-				Kind:       "Namespace",
-				Namespaced: false,
-			},
-			{
-				Name:       "replicationcontrollers",
-				Kind:       "ReplicationController",
-				Namespaced: true,
-			},
-		}
-	default:
-		return nil, fmt.Errorf("gv %v not found in test implementation", gv)
-	}
-	rsrc := metav1.APIResourceList{
-		GroupVersion: gv,
-		APIResources: rsrcs,
-	}
-	return &rsrc, nil
-}
-
-func (c *FakeDiscovery) ServerResources() ([]*metav1.APIResourceList, error) {
-	panic("unimplemented")
-}
-
-func (c *FakeDiscovery) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
-	panic("unimplemented")
-}
-
-func (c *FakeDiscovery) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
-	panic("unimplemented")
-}
-
-var _ discovery.OpenAPISchemaInterface = &FakeDiscovery{}
 
 func (c *FakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
 	action := ktesting.ActionImpl{}
 	action.Verb = "get"
 	c.Fake.Invokes(action, nil)
 
-	return c.delegate.OpenAPISchema()
+	return c.schemaGetter.OpenAPISchema()
 }
 
 func TestDepSort(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	disco := NewFakeDiscovery(schemaFromFile{dir: filepath.FromSlash("../testdata")})
+	disco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{
+					Name:       "configmaps",
+					Kind:       "ConfigMap",
+					Namespaced: true,
+				},
+				{
+					Name:       "namespaces",
+					Kind:       "Namespace",
+					Namespaced: false,
+				},
+				{
+					Name:       "replicationcontrollers",
+					Kind:       "ReplicationController",
+					Namespaced: true,
+				},
+			},
+		},
+	}
+
+	mapper := restmapper.NewDiscoveryRESTMapper([]*restmapper.APIGroupResources{{
+		Group: metav1.APIGroup{
+			Name: "",
+			Versions: []metav1.GroupVersionForDiscovery{{
+				GroupVersion: "v1",
+				Version:      "v1",
+			}},
+		},
+		VersionedResources: map[string][]metav1.APIResource{
+			"v1": disco.Resources[0].APIResources,
+		},
+	}})
 
 	newObj := func(apiVersion, kind string) *unstructured.Unstructured {
 		return &unstructured.Unstructured{
@@ -130,7 +109,7 @@ func TestDepSort(t *testing.T) {
 		newObj("apiextensions/v1beta1", "CustomResourceDefinition"),
 	}
 
-	sorter, err := DependencyOrder(disco, objs)
+	sorter, err := DependencyOrder(disco, mapper, objs)
 	if err != nil {
 		t.Fatalf("DependencyOrder error: %v", err)
 	}

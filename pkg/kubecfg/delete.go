@@ -21,6 +21,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
@@ -31,7 +32,8 @@ import (
 
 // DeleteCmd represents the delete subcommand
 type DeleteCmd struct {
-	ClientPool       dynamic.ClientPool
+	Client           dynamic.Interface
+	Mapper           meta.RESTMapper
 	Discovery        discovery.DiscoveryInterface
 	DefaultNamespace string
 
@@ -46,7 +48,7 @@ func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
 	}
 
 	log.Infof("Fetching schemas for %d resources", len(apiObjects))
-	depOrder, err := utils.DependencyOrder(c.Discovery, apiObjects)
+	depOrder, err := utils.DependencyOrder(c.Discovery, c.Mapper, apiObjects)
 	if err != nil {
 		return err
 	}
@@ -67,10 +69,10 @@ func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
 	}
 
 	for _, obj := range apiObjects {
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
+		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Mapper, obj), utils.FqName(obj))
 		log.Info("Deleting ", desc)
 
-		client, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		client, err := utils.ClientForResource(c.Client, c.Mapper, obj, c.DefaultNamespace)
 		if err != nil {
 			return err
 		}

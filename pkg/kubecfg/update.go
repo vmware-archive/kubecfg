@@ -53,7 +53,8 @@ const (
 
 // UpdateCmd represents the update subcommand
 type UpdateCmd struct {
-	ClientPool       dynamic.ClientPool
+	Client           dynamic.Interface
+	Mapper           meta.RESTMapper
 	Discovery        discovery.DiscoveryInterface
 	DefaultNamespace string
 
@@ -70,7 +71,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 	}
 
 	log.Infof("Fetching schemas for %d resources", len(apiObjects))
-	depOrder, err := utils.DependencyOrder(c.Discovery, apiObjects)
+	depOrder, err := utils.DependencyOrder(c.Discovery, c.Mapper, apiObjects)
 	if err != nil {
 		return err
 	}
@@ -85,10 +86,10 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 			utils.SetMetaDataLabel(obj, LabelGcTag, c.GcTag)
 		}
 
-		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Discovery, obj), utils.FqName(obj))
+		desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(c.Mapper, obj), utils.FqName(obj))
 		log.Info("Updating ", desc, dryRunText)
 
-		rc, err := utils.ClientForResource(c.ClientPool, c.Discovery, obj, c.DefaultNamespace)
+		rc, err := utils.ClientForResource(c.Client, c.Mapper, obj, c.DefaultNamespace)
 		if err != nil {
 			return err
 		}
@@ -99,7 +100,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		}
 		var newobj metav1.Object
 		if !c.DryRun {
-			newobj, err = rc.Patch(obj.GetName(), types.MergePatchType, asPatch)
+			newobj, err = rc.Patch(obj.GetName(), types.MergePatchType, asPatch, metav1.UpdateOptions{})
 			log.Debugf("Patch(%s) returned (%v, %v)", obj.GetName(), newobj, err)
 		} else {
 			newobj, err = rc.Get(obj.GetName(), metav1.GetOptions{})
@@ -107,7 +108,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		if c.Create && errors.IsNotFound(err) {
 			log.Info(" Creating non-existent ", desc, dryRunText)
 			if !c.DryRun {
-				newobj, err = rc.Create(obj)
+				newobj, err = rc.Create(obj, metav1.CreateOptions{})
 				log.Debugf("Create(%s) returned (%v, %v)", obj.GetName(), newobj, err)
 			} else {
 				newobj = obj
@@ -137,18 +138,18 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		}
 
 		// [gctag-migration]: Add LabelGcTag==c.GcTag to ListOptions.LabelSelector in phase2
-		err = walkObjects(c.ClientPool, c.Discovery, metav1.ListOptions{}, func(o runtime.Object) error {
+		err = walkObjects(c.Client, c.Discovery, metav1.ListOptions{}, func(o runtime.Object) error {
 			meta, err := meta.Accessor(o)
 			if err != nil {
 				return err
 			}
 			gvk := o.GetObjectKind().GroupVersionKind()
-			desc := fmt.Sprintf("%s %s (%s)", utils.ResourceNameFor(c.Discovery, o), utils.FqName(meta), gvk.GroupVersion())
+			desc := fmt.Sprintf("%s %s (%s)", utils.ResourceNameFor(c.Mapper, o), utils.FqName(meta), gvk.GroupVersion())
 			log.Debugf("Considering %v for gc", desc)
 			if eligibleForGc(meta, c.GcTag) && !seenUids.Has(string(meta.GetUID())) {
 				log.Info("Garbage collecting ", desc, dryRunText)
 				if !c.DryRun {
-					err := gcDelete(c.ClientPool, c.Discovery, &version, o)
+					err := gcDelete(c.Client, c.Mapper, &version, o)
 					if err != nil {
 						return err
 					}
@@ -173,14 +174,14 @@ func stringListContains(list []string, value string) bool {
 	return false
 }
 
-func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface, version *utils.ServerVersion, o runtime.Object) error {
+func gcDelete(client dynamic.Interface, mapper meta.RESTMapper, version *utils.ServerVersion, o runtime.Object) error {
 	obj, err := meta.Accessor(o)
 	if err != nil {
 		return fmt.Errorf("Unexpected object type: %s", err)
 	}
 
 	uid := obj.GetUID()
-	desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(disco, o), utils.FqName(obj))
+	desc := fmt.Sprintf("%s %s", utils.ResourceNameFor(mapper, o), utils.FqName(obj))
 
 	deleteOpts := metav1.DeleteOptions{
 		Preconditions: &metav1.Preconditions{UID: &uid},
@@ -195,7 +196,7 @@ func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface,
 		deleteOpts.PropagationPolicy = &fg
 	}
 
-	c, err := utils.ClientForResource(clientpool, disco, o, metav1.NamespaceNone)
+	c, err := utils.ClientForResource(client, mapper, o, metav1.NamespaceNone)
 	if err != nil {
 		return err
 	}
@@ -213,7 +214,7 @@ func gcDelete(clientpool dynamic.ClientPool, disco discovery.DiscoveryInterface,
 	return nil
 }
 
-func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
+func walkObjects(client dynamic.Interface, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
 	rsrclists, err := disco.ServerResources()
 	if err != nil {
 		return err
@@ -223,27 +224,29 @@ func walkObjects(pool dynamic.ClientPool, disco discovery.DiscoveryInterface, li
 		if err != nil {
 			return err
 		}
-		for _, rsrc := range rsrclist.APIResources {
-			gvk := gv.WithKind(rsrc.Kind)
 
+		for _, rsrc := range rsrclist.APIResources {
 			if !stringListContains(rsrc.Verbs, "list") {
-				log.Debugf("Don't know how to list %v, skipping", rsrc)
+				log.Debugf("Don't know how to list %#v, skipping", rsrc)
 				continue
 			}
-			client, err := pool.ClientForGroupVersionKind(gvk)
-			if err != nil {
-				return err
+
+			gvr := gv.WithResource(rsrc.Name)
+			if rsrc.Group != "" {
+				gvr.Group = rsrc.Group
+			}
+			if rsrc.Version != "" {
+				gvr.Version = rsrc.Version
 			}
 
-			var ns string
+			var rc dynamic.ResourceInterface
 			if rsrc.Namespaced {
-				ns = metav1.NamespaceAll
+				rc = client.Resource(gvr).Namespace(metav1.NamespaceAll)
 			} else {
-				ns = metav1.NamespaceNone
+				rc = client.Resource(gvr)
 			}
 
-			rc := client.Resource(&rsrc, ns)
-			log.Debugf("Listing %s", gvk)
+			log.Debugf("Listing %s", gvr)
 			obj, err := rc.List(listopts)
 			if err != nil {
 				return err

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
@@ -123,22 +124,15 @@ func SetMetaDataLabel(obj metav1.Object, key, value string) {
 
 // ResourceNameFor returns a lowercase plural form of a type, for
 // human messages.  Returns lowercased kind if discovery lookup fails.
-func ResourceNameFor(disco discovery.ServerResourcesInterface, o runtime.Object) string {
+func ResourceNameFor(mapper meta.RESTMapper, o runtime.Object) string {
 	gvk := o.GetObjectKind().GroupVersionKind()
-	rls, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		log.Debugf("Discovery failed for %s: %s, falling back to kind", gvk, err)
+		log.Debugf("RESTMapper failed for %s: %s, falling back to kind", gvk, err)
 		return strings.ToLower(gvk.Kind)
 	}
 
-	for _, rl := range rls.APIResources {
-		if rl.Kind == gvk.Kind {
-			return rl.Name
-		}
-	}
-
-	log.Debugf("Discovery failed to find %s, falling back to kind", gvk)
-	return strings.ToLower(gvk.Kind)
+	return mapping.Resource.Resource
 }
 
 // FqName returns "namespace.name"

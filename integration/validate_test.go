@@ -49,6 +49,7 @@ var _ = Describe("validate", func() {
 					"spec": map[string]interface{}{
 						"group":   "example.com",
 						"version": "v1alpha1",
+						"scope":   "namespaced",
 						"names": map[string]string{
 							"plural":   "crds",
 							"singular": "crd",
