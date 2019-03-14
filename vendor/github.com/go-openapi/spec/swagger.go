@@ -67,6 +67,7 @@ func (s *Swagger) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// SwaggerProps captures the top-level properties of an Api specification
 type SwaggerProps struct {
 	ID                  string                 `json:"id,omitempty"`
 	Consumes            []string               `json:"consumes,omitempty"`
@@ -156,7 +157,7 @@ func (s SchemaOrStringArray) MarshalJSON() ([]byte, error) {
 	if s.Schema != nil {
 		return json.Marshal(s.Schema)
 	}
-	return nil, nil
+	return []byte("null"), nil
 }
 
 // UnmarshalJSON converts this schema object or array from a JSON structure

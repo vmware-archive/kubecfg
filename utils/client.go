@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/googleapis/gnostic/OpenAPIv2"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,8 +32,9 @@ import (
 )
 
 type memcachedDiscoveryClient struct {
+	fresh           bool
 	cl              discovery.DiscoveryInterface
-	lock            sync.RWMutex
+	lock            sync.Mutex
 	servergroups    *metav1.APIGroupList
 	serverresources map[string]*metav1.APIResourceList
 	schemas         map[string]openapi.Resources
@@ -47,17 +49,41 @@ func NewMemcachedDiscoveryClient(cl discovery.DiscoveryInterface) discovery.Cach
 	return c
 }
 
+// Fresh is supposed to tell the caller whether or not to retry if the cache
+// fails to find something (false = retry, true = no need to retry).
 func (c *memcachedDiscoveryClient) Fresh() bool {
-	return true
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.fresh
+}
+
+// MaybeMarkStale calls MarkStale on the discovery client, if the
+// client is a memcachedDiscoveryClient.
+func MaybeMarkStale(d discovery.DiscoveryInterface) {
+	if c, ok := d.(*memcachedDiscoveryClient); ok {
+		c.MarkStale()
+	}
+}
+
+func (c *memcachedDiscoveryClient) MarkStale() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	log.Debug("Marking cached discovery info (potentially) stale")
+	c.fresh = false
 }
 
 func (c *memcachedDiscoveryClient) Invalidate() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	log.Debug("Invalidating cached discovery info")
 	c.servergroups = nil
 	c.serverresources = make(map[string]*metav1.APIResourceList)
 	c.schemas = make(map[string]openapi.Resources)
+	c.schema = nil
+	c.fresh = true
 }
 
 func (c *memcachedDiscoveryClient) RESTClient() rest.Interface {

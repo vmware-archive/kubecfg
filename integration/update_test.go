@@ -4,15 +4,23 @@ package integration
 
 import (
 	"bytes"
+	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
+	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/bitnami/kubecfg/pkg/kubecfg"
+	"github.com/bitnami/kubecfg/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -87,35 +95,68 @@ var _ = Describe("update", func() {
 
 	Describe("A simple update", func() {
 		var cm *v1.ConfigMap
+		var kubecfgOut *bytes.Buffer
 		BeforeEach(func() {
 			cm = &v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: cmName},
-				Data:       map[string]string{"foo": "bar"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: cmName,
+					Annotations: map[string]string{
+						"my-annotation": "annotation-value",
+					},
+				},
+				Data: map[string]string{"foo": "bar"},
 			}
+			kubecfgOut = &bytes.Buffer{}
 		})
 
 		JustBeforeEach(func() {
-			err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, []runtime.Object{cm})
+			err := runKubecfgWithOutput([]string{"update", "-vv", "-n", ns}, []runtime.Object{cm}, kubecfgOut)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		Context("With no existing state", func() {
 			It("should produce expected object", func() {
-				Expect(c.ConfigMaps(ns).Get("testcm", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
+				Expect(kubecfgOut.String()).
+					To(ContainSubstring("Creating configmaps %s", cmName))
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Updating configmaps %s", cmName))
 			})
 		})
 
-		Context("With existing object", func() {
+		Context("With existing non-kubecfg object", func() {
 			BeforeEach(func() {
 				_, err := c.ConfigMaps(ns).Create(cm)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("should succeed", func() {
-
-				Expect(c.ConfigMaps(ns).Get("testcm", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
+				// NB: may report "Updating" - that's ok.
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Creating configmaps %s", cmName))
+			})
+		})
+
+		Context("With no change", func() {
+			BeforeEach(func() {
+				err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, []runtime.Object{cm})
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+					To(WithTransform(metav1.Object.GetAnnotations, HaveKey(kubecfg.AnnotationOrigObject)))
+			})
+
+			It("should not report a change", func() {
+				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
+				// no change -> should report neither Updating nor Creating
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Updating configmaps %s", cmName))
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Creating configmaps %s", cmName))
 			})
 		})
 
@@ -126,13 +167,242 @@ var _ = Describe("update", func() {
 					Data:       map[string]string{"foo": "not bar"},
 				}
 
-				_, err := c.ConfigMaps(ns).Create(otherCm)
+				err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, []runtime.Object{otherCm})
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("should update the object", func() {
-				Expect(c.ConfigMaps(ns).Get("testcm", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
+				Expect(kubecfgOut.String()).
+					To(ContainSubstring("Updating configmaps %s", cmName))
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Creating configmaps %s", cmName))
+			})
+		})
+
+		Context("With externally modified object", func() {
+			BeforeEach(func() {
+				otherCm := &v1.ConfigMap{
+					ObjectMeta: cm.ObjectMeta,
+					Data:       map[string]string{"foo": "not bar"},
+				}
+
+				// Created by kubecfg ...
+				err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, []runtime.Object{otherCm})
+				Expect(err).NotTo(HaveOccurred())
+
+				// ... and then modified by another controller/whatever.
+				o, err := c.ConfigMaps(ns).Patch(cmName, types.MergePatchType,
+					[]byte(`{"metadata": {"annotations": {"addedby": "3rd-party"}}}`))
+				Expect(err).NotTo(HaveOccurred())
+				fmt.Fprintf(GinkgoWriter, "patch result is %v\n", o)
+			})
+
+			It("should update the object", func() {
+				cm, err := c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cm).To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
+				Expect(cm).To(WithTransform(metav1.Object.GetAnnotations, And(
+					HaveKeyWithValue("addedby", "3rd-party"),
+					HaveKeyWithValue("my-annotation", "annotation-value"),
+				)))
+
+				Expect(kubecfgOut.String()).
+					To(ContainSubstring("Updating configmaps %s", cmName))
+				Expect(kubecfgOut.String()).
+					NotTo(ContainSubstring("Creating configmaps %s", cmName))
+			})
+		})
+	})
+
+	Describe("Update of existing object", func() {
+		var objs []runtime.Object
+		BeforeEach(func() {
+			objs = []runtime.Object{}
+		})
+		JustBeforeEach(func() {
+			err := runKubecfgWith([]string{"update", "--ignore-unknown", "-vv", "-n", ns}, objs)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("Custom type with no schema", func() {
+			var obj *unstructured.Unstructured
+			var rc dynamic.NamespaceableResourceInterface
+			BeforeEach(func() {
+				obj = &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "random.example.com/v1",
+						"kind":       "Thing",
+						"metadata": map[string]interface{}{
+							"name": "thing1",
+							"annotations": map[string]interface{}{
+								"gen": "one",
+							},
+						},
+					},
+				}
+
+				crd := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apiextensions.k8s.io/v1beta1",
+						"kind":       "CustomResourceDefinition",
+						"metadata": map[string]interface{}{
+							"name": "things.random.example.com",
+						},
+						"spec": map[string]interface{}{
+							// Note: no schema information
+							"group":   "random.example.com",
+							"version": "v1",
+							"scope":   "Namespaced",
+							"names": map[string]interface{}{
+								"plural": "things",
+								"kind":   "Thing",
+							},
+						},
+					},
+				}
+
+				objs = append(objs, obj, crd)
+
+				client, err := dynamic.NewForConfig(clusterConfigOrDie())
+				Expect(err).NotTo(HaveOccurred())
+				rc = client.Resource(schema.GroupVersionResource{
+					Group:    "random.example.com",
+					Version:  "v1",
+					Resource: "things",
+				})
+
+			})
+			AfterEach(func() {
+				client, err := dynamic.NewForConfig(clusterConfigOrDie())
+				Expect(err).NotTo(HaveOccurred())
+				rc := client.Resource(schema.GroupVersionResource{
+					Group:    "apiextensions.k8s.io",
+					Version:  "v1beta1",
+					Resource: "customresourcedefinitions",
+				})
+				_ = rc.Delete("things.random.example.com", &metav1.DeleteOptions{})
+			})
+
+			It("should update correctly", func() {
+				Expect(rc.Namespace(ns).Get("thing1", metav1.GetOptions{})).
+					To(WithTransform(metav1.Object.GetAnnotations,
+						HaveKeyWithValue("gen", "one")))
+
+				// Perform an update
+				utils.SetMetaDataAnnotation(obj, "gen", "two")
+				utils.SetMetaDataAnnotation(obj, "unrelated", "baz")
+				err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, objs)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Verify result
+				Expect(rc.Namespace(ns).Get("thing1", metav1.GetOptions{})).
+					To(WithTransform(metav1.Object.GetAnnotations, And(
+						HaveKeyWithValue("gen", "two"),
+						HaveKeyWithValue("unrelated", "baz"),
+					)))
+			})
+		})
+
+		Context("Service type=NodePort", func() {
+			// https://github.com/bitnami/kubecfg/issues/226
+
+			const svcName = "example"
+			BeforeEach(func() {
+				objs = append(objs, &v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: svcName,
+						Annotations: map[string]string{
+							"generation": "one",
+						},
+					},
+					Spec: v1.ServiceSpec{
+						Ports: []v1.ServicePort{{
+							Protocol: "TCP",
+							Port:     80,
+						}},
+						Type: "NodePort",
+					},
+				})
+			})
+
+			It("should not change ports on subsequent updates", func() {
+				svc, err := c.Services(ns).Get(svcName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(svc).To(WithTransform(metav1.Object.GetAnnotations,
+					HaveKeyWithValue("generation", "one")))
+				port := svc.Spec.Ports[0].NodePort
+				Expect(port).To(BeNumerically(">", 0))
+
+				// Perform an update
+				utils.SetMetaDataAnnotation(objs[0].(*v1.Service), "generation", "two")
+				err = runKubecfgWith([]string{"update", "-vv", "-n", ns}, objs)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Check NodePort hasn't changed
+				svc, err = c.Services(ns).Get(svcName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(svc).To(WithTransform(metav1.Object.GetAnnotations,
+					HaveKeyWithValue("generation", "two")))
+				Expect(svc.Spec.Ports[0].NodePort).
+					To(Equal(port))
+			})
+		})
+
+		Context("Container resources{}", func() {
+			// https://github.com/ksonnet/kubecfg/issues/226
+
+			const deployName = "example"
+			BeforeEach(func() {
+				objs = append(objs, &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: deployName,
+						Annotations: map[string]string{
+							"gen": "one",
+						},
+					},
+					Spec: appsv1.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"name": "c"},
+						},
+						Template: v1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{"name": "c"},
+							},
+							Spec: v1.PodSpec{
+								Containers: []v1.Container{{
+									Name:  "c",
+									Image: "k8s.gcr.io/pause",
+								}},
+							},
+						},
+					},
+				})
+			})
+
+			It("should merge correctly into containers[]", func() {
+				// Simulate change by 3rd-party
+				appsc := appsv1client.NewForConfigOrDie(clusterConfigOrDie())
+				_, err := appsc.Deployments(ns).Patch(deployName,
+					types.StrategicMergePatchType,
+					[]byte(`{"spec": {"template": {"spec": {"containers": [{"name": "c", "resources": {"limits": {"cpu": "1"}}}]}}}}`),
+				)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Perform an update
+				utils.SetMetaDataAnnotation(objs[0].(*appsv1.Deployment), "gen", "two")
+				err = runKubecfgWith([]string{"update", "-vv", "-n", ns}, objs)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Check container.resources was preserved
+				d, err := appsc.Deployments(ns).Get(deployName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(d).To(WithTransform(metav1.Object.GetAnnotations,
+					HaveKeyWithValue("gen", "two")))
+				Expect(d.Spec.Template.Spec.Containers[0].Resources.Limits).
+					To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("1")))
+
 			})
 		})
 	})

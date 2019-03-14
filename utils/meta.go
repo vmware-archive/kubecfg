@@ -112,6 +112,15 @@ func SetMetaDataAnnotation(obj metav1.Object, key, value string) {
 	obj.SetAnnotations(a)
 }
 
+// DeleteMetaDataAnnotation removes an annotation value
+func DeleteMetaDataAnnotation(obj metav1.Object, key string) {
+	a := obj.GetAnnotations()
+	if a != nil {
+		delete(a, key)
+		obj.SetAnnotations(a)
+	}
+}
+
 // SetMetaDataLabel sets an annotation value
 func SetMetaDataLabel(obj metav1.Object, key, value string) {
 	l := obj.GetLabels()
@@ -122,13 +131,22 @@ func SetMetaDataLabel(obj metav1.Object, key, value string) {
 	obj.SetLabels(l)
 }
 
+// DeleteMetaDataLabel removes a label value
+func DeleteMetaDataLabel(obj metav1.Object, key string) {
+	l := obj.GetLabels()
+	if l != nil {
+		delete(l, key)
+		obj.SetLabels(l)
+	}
+}
+
 // ResourceNameFor returns a lowercase plural form of a type, for
 // human messages.  Returns lowercased kind if discovery lookup fails.
 func ResourceNameFor(mapper meta.RESTMapper, o runtime.Object) string {
 	gvk := o.GetObjectKind().GroupVersionKind()
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		log.Debugf("RESTMapper failed for %s: %s, falling back to kind", gvk, err)
+		log.Debugf("RESTMapper failed for %s (%s), falling back to kind", gvk, err)
 		return strings.ToLower(gvk.Kind)
 	}
 
