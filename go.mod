@@ -1,4 +1,4 @@
-module github.com/ksonnet/kubecfg
+module github.com/bitnami/kubecfg
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.4.6 // indirect

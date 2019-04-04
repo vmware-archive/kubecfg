@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/ksonnet/kubecfg/utils"
+	"github.com/bitnami/kubecfg/utils"
 )
 
 const (

@@ -18,7 +18,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/ksonnet/kubecfg/pkg/kubecfg"
+	"github.com/bitnami/kubecfg/pkg/kubecfg"
 )
 
 const flagDiffStrategy = "diff-strategy"
