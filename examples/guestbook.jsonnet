@@ -24,9 +24,8 @@
 // kubecfg delete guestbook.jsonnet
 // ```
 
-// This example uses kube.libsonnet from Bitnami.  There are several
-// other Kubernetes libraries available (notably ksonnet/ksonnet-lib),
-// or write your own!
+// This example uses kube.libsonnet from Bitnami.  There are other
+// Kubernetes libraries available, or write your own!
 local kube = import "https://github.com/bitnami-labs/kube-libsonnet/raw/52ba963ca44f7a4960aeae9ee0fbee44726e481f/kube.libsonnet";
 
 // A function that returns 2 k8s objects: a redis Deployment and Service

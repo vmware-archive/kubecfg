@@ -11,7 +11,7 @@ modified the input files.
 
 TL;DR: run `make vendor` whenever you add/remove a dependency. run `GO111MODULE=on go get -u .....` to update deps.
 
-This project uses `go mod`, Go modules feature implemented since Go 1.11. This feature needs to be turned on explicitly via the `GO111MODULE` env variable, if you checkout the `kubecfg` repo in its canonical location in the GOPATH (i.e. $GOPATH/github.com/ksonnet/kubecfg).  This feature is turned on _automatically_ if you checkout the `kubecfg` repo anywhere else in the filesystem.
+This project uses `go mod`, Go modules feature implemented since Go 1.11. This feature needs to be turned on explicitly via the `GO111MODULE` env variable, if you checkout the `kubecfg` repo in its canonical location in the GOPATH (i.e. $GOPATH/github.com/bitnami/kubecfg).  This feature is turned on _automatically_ if you checkout the `kubecfg` repo anywhere else in the filesystem.
 
 
 This repository is configured to use Go modules as a source of truth for dependency information,

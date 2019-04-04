@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	"github.com/ksonnet/kubecfg/pkg/kubecfg"
+	"github.com/bitnami/kubecfg/pkg/kubecfg"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

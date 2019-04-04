@@ -20,8 +20,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ksonnet/kubecfg/cmd"
-	"github.com/ksonnet/kubecfg/pkg/kubecfg"
+	"github.com/bitnami/kubecfg/cmd"
+	"github.com/bitnami/kubecfg/pkg/kubecfg"
 )
 
 // Version is overridden using `-X main.version` during release builds

@@ -40,7 +40,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ksonnet/kubecfg/utils"
+	"github.com/bitnami/kubecfg/utils"
 
 	// Register auth plugins
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
