@@ -2,7 +2,9 @@ language: go
 
 go:
   # NB: order matters - matrix items that don't specify will use the
-  # first value (ditto for `os` below)
+  # first value (ditto for `os` below).
+  # NB: release condition below also references (one) of the values in
+  # this list.  Update there too!
   - 1.11.x
 
 os:
@@ -92,7 +94,7 @@ deploy:
     secure: "T/LpWZSgeqWBgY3mUNeej55n8TbZZM7UgrHl7pej1CE2cs6YGcfyog3peiXvCcVF9NhGsm6eTXZQeFxsuWgMbWYeqlBnMkHNPPqdNpeRFgY0TkFZXHZLexfqTo2MLgrZiJ+bZl8wZnTTXukieGeLE37ugkBJyceLyfqIaxwRlpDzKPn8XtIqOMOwMq0aeUA8wjSSpuWkuwlGWKwJtI48BNExZZ1FRpPHQdAZjX6zEPT2SuRaACZdoX+3k/Fr91H6O9TplE4q5eCpEdd3y7BGGtMm3WA70SxYIZPGzfwaALGja5BapZr9Eui6ppyPGesQ8zV+zNtOsnK5Phj3QUj8M+v4BmJbxbPyhAIWmFiDlutgwZUkXI+R+SXONy1/LTuLLNSJ9WPQsC9gL09FGQmg+X0s7VpJVWxD8FScY0DJ4/bNLgeWnzwT2YTsduDktqevMpetxJWZGVQx3EN595JJKlZGtE8PouzVm7sRQEfe3Jd0XIcPfj5AV5trEBDjgHZSnU4qa9G9RdUZfswVp+R7SEwoTwEIEyOpFAwi9Qg5wkCAZFU2+86LQOLYH0Pm38//RxSXJEF1abkEb0Y/awz6KKlGBK3z1VSXvK3LQ8r9SwF2h15rD74O1mGM8Mjbs+mJXPxKpCq+BslskRYur3F8tRx45pwr8Ly9dppZd2rrswI="
   file: $EXE_NAME
   on:
-    condition: x$DO_INTEGRATION_TEST = x && ${TRAVIS_GO_VERSION}.0 =~ ^1\.9\.
+    condition: x$DO_INTEGRATION_TEST = x && ${TRAVIS_GO_VERSION}.0 =~ ^1\.11\.
     tags: true
   provider: releases
   skip_cleanup: true
