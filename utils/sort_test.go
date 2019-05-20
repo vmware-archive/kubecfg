@@ -106,7 +106,7 @@ func TestDepSort(t *testing.T) {
 		newObj("v1", "ConfigMap"),
 		newObj("v1", "Namespace"),
 		newObj("bogus/v1", "UnknownKind"),
-		newObj("apiextensions/v1beta1", "CustomResourceDefinition"),
+		newObj("apiextensions.k8s.io/v1beta1", "CustomResourceDefinition"),
 	}
 
 	sorter, err := DependencyOrder(disco, mapper, objs)

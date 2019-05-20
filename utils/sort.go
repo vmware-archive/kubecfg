@@ -28,7 +28,7 @@ import (
 
 var (
 	gkTpr = schema.GroupKind{Group: "extensions", Kind: "ThirdPartyResource"}
-	gkCrd = schema.GroupKind{Group: "apiextensions", Kind: "CustomResourceDefinition"}
+	gkCrd = schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}
 )
 
 // a podSpecVisitor traverses a schema tree and records whether the schema
