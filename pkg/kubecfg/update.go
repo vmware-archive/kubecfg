@@ -84,17 +84,28 @@ type UpdateCmd struct {
 
 func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unstructured.Unstructured, error) {
 	annos := existing.GetAnnotations()
-	origData := []byte(annos[AnnotationOrigObject])
+	var origData []byte
+	if data := annos[AnnotationOrigObject]; data != "" {
+		tmp := unstructured.Unstructured{}
+		err := utils.CompactDecodeObject(data, &tmp)
+		if err != nil {
+			return nil, err
+		}
+		origData, err = tmp.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	log.Debugf("origData: %s", origData)
 
 	new = new.DeepCopy()
 	utils.DeleteMetaDataAnnotation(new, AnnotationOrigObject)
-	data, err := new.MarshalJSON()
+	data, err := utils.CompactEncodeObject(new)
 	if err != nil {
 		return nil, err
 	}
-	utils.SetMetaDataAnnotation(new, AnnotationOrigObject, string(data))
+	utils.SetMetaDataAnnotation(new, AnnotationOrigObject, data)
 
 	// Note origData may be empty if last-applied annotation didn't exist
 
@@ -145,11 +156,11 @@ func createOrUpdate(rc dynamic.ResourceInterface, obj *unstructured.Unstructured
 	if create && errors.IsNotFound(err) {
 		log.Info("Creating ", desc, dryRunText)
 
-		data, err := obj.MarshalJSON()
+		data, err := utils.CompactEncodeObject(obj)
 		if err != nil {
 			return nil, err
 		}
-		utils.SetMetaDataAnnotation(obj, AnnotationOrigObject, string(data))
+		utils.SetMetaDataAnnotation(obj, AnnotationOrigObject, data)
 
 		if dryRun {
 			return obj, nil

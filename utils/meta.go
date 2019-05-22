@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"compress/gzip"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -159,4 +162,38 @@ func FqName(o metav1.Object) string {
 		return o.GetName()
 	}
 	return fmt.Sprintf("%s.%s", o.GetNamespace(), o.GetName())
+}
+
+// CompactEncodeObject returns a compact string representation
+// (json->gzip->base64) of an object, intended for use in
+// last-applied-configuration annotation.
+func CompactEncodeObject(o runtime.Object) (string, error) {
+	var buf strings.Builder
+	b64enc := base64.NewEncoder(base64.StdEncoding, &buf)
+	zw := gzip.NewWriter(b64enc)
+	jsenc := json.NewEncoder(zw)
+	jsenc.SetEscapeHTML(false)
+	jsenc.SetIndent("", "")
+
+	if err := jsenc.Encode(o); err != nil {
+		return "", err
+	}
+
+	zw.Close()
+	b64enc.Close()
+
+	return buf.String(), nil
+}
+
+// CompactDecodeObject does the reverse of CompactEncodeObject.
+func CompactDecodeObject(data string, into runtime.Object) error {
+	zr, err := gzip.NewReader(
+		base64.NewDecoder(base64.StdEncoding,
+			strings.NewReader(data)))
+	if err != nil {
+		return err
+	}
+
+	jsdec := json.NewDecoder(zr)
+	return jsdec.Decode(into)
 }

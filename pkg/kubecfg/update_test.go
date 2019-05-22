@@ -124,11 +124,11 @@ func exampleConfigMap() *unstructured.Unstructured {
 }
 
 func addOrigAnnotation(obj *unstructured.Unstructured) {
-	data, err := obj.MarshalJSON()
+	data, err := utils.CompactEncodeObject(obj)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to serialise object: %v", err))
 	}
-	utils.SetMetaDataAnnotation(obj, AnnotationOrigObject, string(data))
+	utils.SetMetaDataAnnotation(obj, AnnotationOrigObject, data)
 }
 
 func newPatchMetaFromStructOrDie(dataStruct interface{}) strategicpatch.PatchMetaFromStruct {
