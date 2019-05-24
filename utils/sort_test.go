@@ -105,6 +105,7 @@ func TestDepSort(t *testing.T) {
 		newObj("v1", "ReplicationController"),
 		newObj("v1", "ConfigMap"),
 		newObj("v1", "Namespace"),
+		newObj("admissionregistration.k8s.io/v1beta1", "MutatingWebhookConfiguration"),
 		newObj("bogus/v1", "UnknownKind"),
 		newObj("apiextensions.k8s.io/v1beta1", "CustomResourceDefinition"),
 	}
@@ -126,7 +127,10 @@ func TestDepSort(t *testing.T) {
 		t.Error("Namespace should be sorted second")
 	}
 	if objs[4].GetKind() != "ReplicationController" {
-		t.Error("RC should be sorted after other objects")
+		t.Error("RC should be sorted after non-pod objects")
+	}
+	if objs[5].GetKind() != "MutatingWebhookConfiguration" {
+		t.Error("Webhook should be sorted last")
 	}
 }
 

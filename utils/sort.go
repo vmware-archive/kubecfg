@@ -27,8 +27,10 @@ import (
 )
 
 var (
-	gkTpr = schema.GroupKind{Group: "extensions", Kind: "ThirdPartyResource"}
-	gkCrd = schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}
+	gkTpr               = schema.GroupKind{Group: "extensions", Kind: "ThirdPartyResource"}
+	gkCrd               = schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}
+	gkValidatingWebhook = schema.GroupKind{Group: "admissionregistration.k8s.io", Kind: "ValidatingWebhookConfiguration"}
+	gkMutatingWebhook   = schema.GroupKind{Group: "admissionregistration.k8s.io", Kind: "MutatingWebhookConfiguration"}
 )
 
 // a podSpecVisitor traverses a schema tree and records whether the schema
@@ -76,12 +78,16 @@ func containsPodSpec(disco discovery.OpenAPISchemaInterface, gvk schema.GroupVer
 // Arbitrary numbers used to do a simple topological sort of resources.
 func depTier(disco discovery.OpenAPISchemaInterface, mapper meta.RESTMapper, o schema.ObjectKind) (int, error) {
 	gvk := o.GroupVersionKind()
-	if gk := gvk.GroupKind(); gk == gkTpr || gk == gkCrd {
-		// Special case: these create other types
+	gk := gvk.GroupKind()
+	if gk == gkTpr || gk == gkCrd {
+		// Special case (first): these create other types
 		return 10, nil
+	} else if gk == gkValidatingWebhook || gk == gkMutatingWebhook {
+		// Special case (last): these require operational services
+		return 200, nil
 	}
 
-	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	mapping, err := mapper.RESTMapping(gk, gvk.Version)
 	if err != nil {
 		log.Debugf("unable to fetch resource for %s (%v), continuing", gvk, err)
 		return 50, nil
