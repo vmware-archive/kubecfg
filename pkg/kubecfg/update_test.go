@@ -1,15 +1,25 @@
 package kubecfg
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/googleapis/gnostic/OpenAPIv2"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/diff"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi"
 
 	"github.com/bitnami/kubecfg/utils"
 )
 
 func TestStringListContains(t *testing.T) {
+	t.Parallel()
 	foobar := []string{"foo", "bar"}
 	if stringListContains([]string{}, "") {
 		t.Error("Empty list was not empty")
@@ -23,6 +33,7 @@ func TestStringListContains(t *testing.T) {
 }
 
 func TestEligibleForGc(t *testing.T) {
+	t.Parallel()
 	const myTag = "my-gctag"
 	boolTrue := true
 	o := &unstructured.Unstructured{
@@ -52,7 +63,7 @@ func TestEligibleForGc(t *testing.T) {
 
 	// [gctag-migration]: Remove testcase in phase2
 	utils.SetMetaDataAnnotation(o, AnnotationGcTag, myTag)
-	delete(o.GetLabels(), LabelGcTag) // no label. ie: pre-migration
+	utils.DeleteMetaDataLabel(o, LabelGcTag) // no label. ie: pre-migration
 	if !eligibleForGc(o, myTag) {
 		t.Errorf("%v should be eligible (gctag-migration phase1)", o)
 	}
@@ -88,5 +99,158 @@ func TestEligibleForGc(t *testing.T) {
 	setOwnerRef(o, metav1.OwnerReference{Kind: "foo", Name: "bar", Controller: &boolTrue})
 	if eligibleForGc(o, myTag) {
 		t.Errorf("%v should not be eligible (controller ownerref)", o)
+	}
+}
+
+func exampleConfigMap() *unstructured.Unstructured {
+	result := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]interface{}{
+				"name":      "myname",
+				"namespace": "mynamespace",
+				"annotations": map[string]interface{}{
+					"myannotation": "somevalue",
+				},
+			},
+			"data": map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	}
+
+	return result
+}
+
+func addOrigAnnotation(obj *unstructured.Unstructured) {
+	data, err := utils.CompactEncodeObject(obj)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to serialise object: %v", err))
+	}
+	utils.SetMetaDataAnnotation(obj, AnnotationOrigObject, data)
+}
+
+func newPatchMetaFromStructOrDie(dataStruct interface{}) strategicpatch.PatchMetaFromStruct {
+	t, err := strategicpatch.NewPatchMetaFromStruct(dataStruct)
+	if err != nil {
+		panic(fmt.Sprintf("NewPatchMetaFromStruct(%t) failed: %v", dataStruct, err))
+	}
+	return t
+}
+
+func readSchemaOrDie(path string) openapi.Resources {
+	var doc openapi_v2.Document
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to read %s: %v", path, err))
+	}
+	if err := proto.Unmarshal(b, &doc); err != nil {
+		panic(fmt.Sprintf("Unable to unmarshal %s: %v", path, err))
+	}
+	schemaResources, err := openapi.NewOpenAPIData(&doc)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to parse openapi doc: %v", err))
+	}
+	return schemaResources
+}
+
+func TestPatchNoop(t *testing.T) {
+	t.Parallel()
+	schemaResources := readSchemaOrDie(filepath.FromSlash("../../testdata/schema.pb"))
+
+	existing := exampleConfigMap()
+	new := existing.DeepCopy()
+	addOrigAnnotation(existing)
+
+	result, err := patch(existing, new, schemaResources.LookupResource(existing.GroupVersionKind()))
+	if err != nil {
+		t.Errorf("patch() returned error: %v", err)
+	}
+
+	t.Logf("existing: %#v", existing)
+	t.Logf("result: %#v", result)
+	if !apiequality.Semantic.DeepEqual(existing, result) {
+		t.Error("Objects differed: ", diff.ObjectDiff(existing, result))
+	}
+}
+
+func TestPatchNoopNoAnnotation(t *testing.T) {
+	t.Parallel()
+	schemaResources := readSchemaOrDie(filepath.FromSlash("../../testdata/schema.pb"))
+
+	existing := exampleConfigMap()
+	new := existing.DeepCopy()
+	// Note: no addOrigAnnotation(existing)
+
+	result, err := patch(existing, new, schemaResources.LookupResource(existing.GroupVersionKind()))
+	if err != nil {
+		t.Errorf("patch() returned error: %v", err)
+	}
+
+	// result should == existing, except for annotation
+
+	if result.GetAnnotations()[AnnotationOrigObject] == "" {
+		t.Errorf("result lacks last-applied annotation")
+	}
+
+	utils.DeleteMetaDataAnnotation(result, AnnotationOrigObject)
+	if !apiequality.Semantic.DeepEqual(existing, result) {
+		t.Error("Objects differed: ", diff.ObjectDiff(existing, result))
+	}
+}
+
+func TestPatchNoConflict(t *testing.T) {
+	t.Parallel()
+	schemaResources := readSchemaOrDie(filepath.FromSlash("../../testdata/schema.pb"))
+
+	existing := exampleConfigMap()
+	utils.SetMetaDataAnnotation(existing, "someanno", "origvalue")
+	addOrigAnnotation(existing)
+	utils.SetMetaDataAnnotation(existing, "otheranno", "existingvalue")
+	new := exampleConfigMap()
+	utils.SetMetaDataAnnotation(new, "someanno", "newvalue")
+
+	result, err := patch(existing, new, schemaResources.LookupResource(existing.GroupVersionKind()))
+	if err != nil {
+		t.Errorf("patch() returned error: %v", err)
+	}
+
+	t.Logf("existing: %#v", existing)
+	t.Logf("result: %#v", result)
+	someanno := result.GetAnnotations()["someanno"]
+	if someanno != "newvalue" {
+		t.Errorf("someanno was %q", someanno)
+	}
+
+	otheranno := result.GetAnnotations()["otheranno"]
+	if otheranno != "existingvalue" {
+		t.Errorf("otheranno was %q", otheranno)
+	}
+}
+
+func TestPatchConflict(t *testing.T) {
+	t.Parallel()
+	schemaResources := readSchemaOrDie(filepath.FromSlash("../../testdata/schema.pb"))
+
+	existing := exampleConfigMap()
+	utils.SetMetaDataAnnotation(existing, "someanno", "origvalue")
+	addOrigAnnotation(existing)
+	utils.SetMetaDataAnnotation(existing, "someanno", "existingvalue")
+	new := exampleConfigMap()
+	utils.SetMetaDataAnnotation(new, "someanno", "newvalue")
+
+	result, err := patch(existing, new, schemaResources.LookupResource(existing.GroupVersionKind()))
+	if err != nil {
+		t.Errorf("patch() returned error: %v", err)
+	}
+
+	// `new` should win conflicts
+
+	t.Logf("existing: %#v", existing)
+	t.Logf("result: %#v", result)
+	value := result.GetAnnotations()["someanno"]
+	if value != "newvalue" {
+		t.Errorf("annotation was %q", value)
 	}
 }

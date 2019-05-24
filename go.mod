@@ -3,17 +3,12 @@ module github.com/bitnami/kubecfg
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.4.6 // indirect
 	github.com/Azure/go-autorest v11.5.0+incompatible // indirect
-	github.com/PuerkitoBio/purell v0.0.0-20170324134132-b938d81255b5 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170324140228-bbf7a2afc14f // indirect
 	github.com/dgrijalva/jwt-go v3.1.0+incompatible // indirect
 	github.com/elazarl/go-bindata-assetfs v0.0.0-20180223160309-38087fe4dafb
-	github.com/evanphx/json-patch v4.1.0+incompatible // indirect
+	github.com/evanphx/json-patch v4.1.0+incompatible
 	github.com/genuinetools/reg v0.0.0-20190102165523-d959057b30da
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-openapi/jsonpointer v0.0.0-20170102174223-779f45308c19 // indirect
-	github.com/go-openapi/jsonreference v0.0.0-20161105162150-36d33bfe519e // indirect
-	github.com/go-openapi/spec v0.0.0-20170413060731-e51c28f07047 // indirect
-	github.com/go-openapi/swag v0.0.0-20170424051500-24ebf76d720b // indirect
+	github.com/go-openapi/spec v0.17.0 // indirect
 	github.com/golang/protobuf v1.2.0
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
 	github.com/google/go-jsonnet v0.12.1
@@ -25,7 +20,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/mailru/easyjson v0.0.0-20170426073802-3f09c2282fc5 // indirect
 	github.com/mattn/go-isatty v0.0.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
@@ -36,16 +30,17 @@ require (
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.0-20180319062004-c439c4fa0937
 	github.com/spf13/pflag v0.0.0-20180220143236-ee5fd03fd6ac // indirect
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	go.opencensus.io v0.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
 	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20190222213804-5cb15d344471
+	k8s.io/apiextensions-apiserver v0.0.0-20190228190300-d002e88f6236
 	k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
 	k8s.io/client-go v2.0.0-alpha.0.0.20190228174230-b40b2a5939e4+incompatible
-	k8s.io/klog v0.2.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20180509051136-39cb288412c4
+	k8s.io/klog v0.2.0
+	k8s.io/kube-openapi v0.0.0-20190306001800-15615b16d372
 	k8s.io/kubernetes v1.13.4
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

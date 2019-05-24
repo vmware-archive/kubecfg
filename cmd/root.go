@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 
 	"github.com/bitnami/kubecfg/utils"
 
@@ -83,8 +84,6 @@ func init() {
 	RootCmd.MarkPersistentFlagFilename("kubeconfig")
 	clientcmd.BindOverrideFlags(&overrides, RootCmd.PersistentFlags(), kflags)
 	clientConfig = clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-
-	RootCmd.PersistentFlags().Set("logtostderr", "true")
 }
 
 // RootCmd is the root of cobra subcommand tree
@@ -107,6 +106,15 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 		log.SetLevel(logLevel(verbosity))
+
+		// Ask me how much I love glog/klog's interface.
+		logflags := goflag.NewFlagSet(os.Args[0], goflag.ExitOnError)
+		klog.InitFlags(logflags)
+		logflags.Set("logtostderr", "true")
+		if verbosity >= 2 {
+			// Semi-arbitrary mapping to klog level.
+			logflags.Set("v", fmt.Sprintf("%d", verbosity*3))
+		}
 
 		return nil
 	},

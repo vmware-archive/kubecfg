@@ -3,9 +3,11 @@ package utils
 import (
 	"testing"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -143,5 +145,35 @@ func TestFqName(t *testing.T) {
 	obj.SetNamespace("mynamespace")
 	if n := FqName(obj); n != "mynamespace.myname" {
 		t.Errorf("Got %q for %v", n, obj)
+	}
+}
+
+func TestCompactEncodeRoundTrip(t *testing.T) {
+	obj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "tests/v1alpha1",
+			"kind":       "Test",
+			"metadata": map[string]interface{}{
+				"name": "myname",
+			},
+			"foo": true,
+		},
+	}
+
+	data, err := CompactEncodeObject(obj)
+	if err != nil {
+		t.Errorf("CompactEncodeObject returned %v", err)
+	}
+	t.Logf("compact encoding is %d bytes", len(data))
+
+	out := &unstructured.Unstructured{}
+	if err := CompactDecodeObject(data, out); err != nil {
+		t.Errorf("CompactDecodeObject returned %v", err)
+	}
+
+	t.Logf("in:  %#v", obj)
+	t.Logf("out: %#v", out)
+	if !apiequality.Semantic.DeepEqual(obj, out) {
+		t.Error("Objects differed: ", diff.ObjectDiff(obj, out))
 	}
 }
