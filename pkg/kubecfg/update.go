@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	apiext_v1b1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -201,7 +201,7 @@ func createOrUpdate(rc dynamic.ResourceInterface, obj *unstructured.Unstructured
 	if err != nil {
 		log.Debug("Updated object: ", diff.ObjectDiff(existing, newobj))
 	}
-	return newobj, nil
+	return newobj, err
 }
 
 // CustomResourceDefinitions modify the discovery metadata, so need
