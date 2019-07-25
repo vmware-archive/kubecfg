@@ -34,17 +34,17 @@ func sortAPIObjectsForShow(apiObjects []*unstructured.Unstructured) {
 	sort.Slice(apiObjects, func(i, j int) bool {
 		a := apiObjects[i]
 		b := apiObjects[j]
-		if a.GetNamespace() < b.GetNamespace() {
-			return true
+		if a.GetNamespace() != b.GetNamespace() {
+			return a.GetNamespace() < b.GetNamespace()
 		}
-		if a.GetName() < b.GetName() {
-			return true
+		if a.GetName() != b.GetName() {
+			return a.GetName() < b.GetName()
 		}
-		if a.GetKind() < b.GetKind() {
-			return true
+		if a.GetKind() != b.GetKind() {
+			return a.GetKind() < b.GetKind()
 		}
-		if a.GetAPIVersion() < b.GetAPIVersion() {
-			return true
+		if a.GetAPIVersion() != b.GetAPIVersion() {
+			return a.GetAPIVersion() < b.GetAPIVersion()
 		}
 		return false
 	})
