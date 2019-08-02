@@ -64,7 +64,7 @@ var overrides clientcmd.ConfigOverrides
 
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
-	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional jsonnet library search path. May be repeated.")
+	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional jsonnet library search path, appended to the ones in the KUBECFG_JPATH env var. May be repeated.")
 	RootCmd.MarkPersistentFlagFilename(flagJpath)
 	RootCmd.PersistentFlags().StringArrayP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL. May be repeated.")
 	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
