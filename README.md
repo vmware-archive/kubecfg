@@ -78,3 +78,9 @@ Kubernetes resources, and is really just a thin Kubernetes-specific
 wrapper around jsonnet evaluation.  You should read the jsonnet
 [tutorial](http://jsonnet.org/docs/tutorial.html), and skim the functions available in the jsonnet [`std`](http://jsonnet.org/docs/stdlib.html)
 library.
+
+## Community
+
+- [#jsonnet on Kubernetes Slack](https://kubernetes.slack.com/messages/jsonnet)
+
+Click [here](http://slack.k8s.io) to sign up to the Kubernetes Slack org.
