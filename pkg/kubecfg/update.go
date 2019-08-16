@@ -120,26 +120,40 @@ func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unst
 	}
 
 	var resData []byte
+	patchWithJSONMerge := func() error {
+		patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origData, newData, existingData)
+		if err == nil {
+			resData, err = jsonpatch.MergePatch(existingData, patch)
+		}
+		return err
+	}
 	if schema == nil {
 		// No schema information - fallback to JSON merge patch
-		patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origData, newData, existingData)
-		if err != nil {
-			return nil, err
-		}
-		resData, err = jsonpatch.MergePatch(existingData, patch)
-		if err != nil {
+		if err := patchWithJSONMerge(); err != nil {
 			return nil, err
 		}
 	} else {
 		patchMeta := strategicpatch.NewPatchMetaFromOpenAPI(schema)
 
 		patch, err := strategicpatch.CreateThreeWayMergePatch(origData, newData, existingData, patchMeta, true)
-		if err != nil {
-			return nil, err
-		}
-		resData, err = strategicpatch.StrategicMergePatchUsingLookupPatchMeta(existingData, patch, patchMeta)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			resData, err = strategicpatch.StrategicMergePatchUsingLookupPatchMeta(existingData, patch, patchMeta)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// NB: At present, custom resources don't accept strategic merge patches. Until this
+			// patch is widely deployed in API servers, we can't reliably inspect the
+			// PatchMetaFromOpenAPI object acquired from strategicpatch.NewPatchMetaFromOpenAPI
+			// above to determine which patch types are available.
+			//
+			// https://github.com/kubernetes/kubernetes/pull/81515
+			//
+			// Interpret failure to create a strategic merge patch as being likely indicative of the
+			// target object belonging to a custom resource, and try again using a JSON merge patch.
+			if err := patchWithJSONMerge(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
