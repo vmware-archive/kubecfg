@@ -82,6 +82,18 @@ type UpdateCmd struct {
 	DryRun bool
 }
 
+func isValidKindSchema(schema proto.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	patchMeta := strategicpatch.NewPatchMetaFromOpenAPI(schema)
+	_, _, err := patchMeta.LookupPatchMetadataForStruct("metadata")
+	if err != nil {
+		log.Debugf("Rejecting schema due to missing 'metadata' property (encountered %q)", err)
+	}
+	return err == nil
+}
+
 func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unstructured.Unstructured, error) {
 	annos := existing.GetAnnotations()
 	var origData []byte
@@ -297,6 +309,12 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		}
 
 		schema := schemaResources.LookupResource(obj.GroupVersionKind())
+		if !isValidKindSchema(schema) {
+			// Invalid schema (eg: custom resource without
+			// schema returns trivial type:object with k8s >=1.15)
+			log.Debugf("Ignoring invalid schema for %s", obj.GroupVersionKind())
+			schema = nil
+		}
 
 		var newobj *unstructured.Unstructured
 		err = retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {

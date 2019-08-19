@@ -6,13 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	pb_proto "github.com/golang/protobuf/proto"
 	"github.com/googleapis/gnostic/OpenAPIv2"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi"
 
 	"github.com/bitnami/kubecfg/utils"
@@ -29,6 +31,35 @@ func TestStringListContains(t *testing.T) {
 	}
 	if stringListContains(foobar, "baz") {
 		t.Error("Should not contain baz")
+	}
+}
+
+func TestIsValidKindSchema(t *testing.T) {
+	t.Parallel()
+	schemaResources := readSchemaOrDie(filepath.FromSlash("../../testdata/schema.pb"))
+
+	cmgvk := schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}
+	if !isValidKindSchema(schemaResources.LookupResource(cmgvk)) {
+		t.Errorf("%s should have a valid schema", cmgvk)
+	}
+
+	if isValidKindSchema(nil) {
+		t.Error("nil should not be a valid schema")
+	}
+
+	// This is what a schema-less CRD appears as in k8s >= 1.15
+	mapSchema := &proto.Map{
+		BaseSchema: proto.BaseSchema{
+			Extensions: map[string]interface{}{
+				"x-kubernetes-group-version-kind": []interface{}{
+					map[interface{}]interface{}{"group": "bitnami.com", "kind": "SealedSecret", "version": "v1alpha1"},
+				},
+			},
+		},
+		SubType: &proto.Arbitrary{},
+	}
+	if isValidKindSchema(mapSchema) {
+		t.Error("Trivial type:object schema should be invalid")
 	}
 }
 
@@ -145,7 +176,7 @@ func readSchemaOrDie(path string) openapi.Resources {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to read %s: %v", path, err))
 	}
-	if err := proto.Unmarshal(b, &doc); err != nil {
+	if err := pb_proto.Unmarshal(b, &doc); err != nil {
 		panic(fmt.Sprintf("Unable to unmarshal %s: %v", path, err))
 	}
 	schemaResources, err := openapi.NewOpenAPIData(&doc)
