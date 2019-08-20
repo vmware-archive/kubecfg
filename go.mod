@@ -31,6 +31,8 @@ require (
 	github.com/spf13/cobra v0.0.0-20180319062004-c439c4fa0937
 	github.com/spf13/pflag v0.0.0-20180220143236-ee5fd03fd6ac // indirect
 	github.com/stretchr/testify v1.3.0
+	github.com/tidwall/gjson v1.3.2
+	github.com/tidwall/sjson v1.0.4
 	go.opencensus.io v0.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
 	gopkg.in/inf.v0 v0.9.0 // indirect

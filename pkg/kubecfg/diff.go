@@ -27,6 +27,8 @@ import (
 	isatty "github.com/mattn/go-isatty"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +48,7 @@ type DiffCmd struct {
 	Client           dynamic.Interface
 	Mapper           meta.RESTMapper
 	DefaultNamespace string
+	IgnorePaths      []string
 
 	DiffStrategy string
 }
@@ -87,6 +90,23 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 
 		liveObjText, _ := json.MarshalIndent(liveObjObject, "", "  ")
 		objText, _ := json.MarshalIndent(obj.Object, "", "  ")
+
+		for _, ignore := range c.IgnorePaths {
+			liveField := gjson.GetBytes(liveObjText, ignore)
+			objectField := gjson.GetBytes(objText, ignore)
+			if !liveField.Exists() || !objectField.Exists() {
+				continue
+			}
+			objText, err = sjson.SetBytes(objText, ignore, liveField.Value())
+			if err != nil {
+				return err
+			}
+			// also override liveobject to handle indentation/minification
+			liveObjText, err = sjson.SetBytes(objText, ignore, liveField.Value())
+			if err != nil {
+				return err
+			}
+		}
 
 		liveObjTextLines, objTextLines, lines := dmp.DiffLinesToChars(string(liveObjText), string(objText))
 

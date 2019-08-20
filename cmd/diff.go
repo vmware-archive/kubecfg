@@ -21,10 +21,14 @@ import (
 	"github.com/bitnami/kubecfg/pkg/kubecfg"
 )
 
-const flagDiffStrategy = "diff-strategy"
+const (
+	flagDiffStrategy = "diff-strategy"
+	flagIgnore       = "ignore"
+)
 
 func init() {
 	diffCmd.PersistentFlags().String(flagDiffStrategy, "all", "Diff strategy, all or subset.")
+	diffCmd.PersistentFlags().StringArray(flagIgnore, []string{}, "JSON Path to ignore when calculating diffs.")
 	RootCmd.AddCommand(diffCmd)
 }
 
@@ -39,6 +43,11 @@ var diffCmd = &cobra.Command{
 		c := kubecfg.DiffCmd{}
 
 		c.DiffStrategy, err = flags.GetString(flagDiffStrategy)
+		if err != nil {
+			return err
+		}
+
+		c.IgnorePaths, err = flags.GetStringArray(flagIgnore)
 		if err != nil {
 			return err
 		}
