@@ -23,7 +23,6 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strings"
 
 	isatty "github.com/mattn/go-isatty"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -41,6 +40,8 @@ var ErrDiffFound = fmt.Errorf("Differences found.")
 
 // Matches all the line starts on a diff text, which is where we put diff markers and indent
 var DiffLineStart = regexp.MustCompile("(^|\n)(.)")
+
+var DiffKeyValue = regexp.MustCompile(`"([[:alnum:]_-]+)":\s"([[:alnum:]=+]+)",?`)
 
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
@@ -121,8 +122,7 @@ func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool, omitchanges
 		text := diff.Text
 
 		if omitchanges {
-			parts := strings.Split(text, ":")
-			text = parts[0] + ": <omitted>\n"
+			text = DiffKeyValue.ReplaceAllString(text, "$1: <omitted>")
 		}
 		switch diff.Type {
 		case diffmatchpatch.DiffInsert:
