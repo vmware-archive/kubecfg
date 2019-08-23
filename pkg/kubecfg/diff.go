@@ -23,6 +23,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 
 	isatty "github.com/mattn/go-isatty"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -46,6 +47,7 @@ type DiffCmd struct {
 	Client           dynamic.Interface
 	Mapper           meta.RESTMapper
 	DefaultNamespace string
+	OmitSecrets      bool
 
 	DiffStrategy string
 }
@@ -100,7 +102,7 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 			fmt.Fprintf(out, "%s unchanged\n", desc)
 		} else {
 			diffFound = true
-			text := c.formatDiff(diff, isatty.IsTerminal(os.Stdout.Fd()))
+			text := c.formatDiff(diff, isatty.IsTerminal(os.Stdout.Fd()), c.OmitSecrets && obj.GetKind() == "Secret")
 			fmt.Fprintf(out, "%s\n", text)
 		}
 	}
@@ -112,12 +114,16 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 }
 
 // Formats the supplied Diff as a unified-diff-like text with infinite context and optionally colorizes it.
-func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool) string {
+func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool, omitchanges bool) string {
 	var buff bytes.Buffer
 
 	for _, diff := range diffs {
 		text := diff.Text
 
+		if omitchanges {
+			parts := strings.Split(text, ":")
+			text = parts[0] + ": <omitted>\n"
+		}
 		switch diff.Type {
 		case diffmatchpatch.DiffInsert:
 			if color {
@@ -136,7 +142,9 @@ func (c DiffCmd) formatDiff(diffs []diffmatchpatch.Diff, color bool) string {
 				_, _ = buff.WriteString("\x1b[0m")
 			}
 		case diffmatchpatch.DiffEqual:
-			_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1  $2"))
+			if !omitchanges {
+				_, _ = buff.WriteString(DiffLineStart.ReplaceAllString(text, "$1  $2"))
+			}
 		}
 	}
 
