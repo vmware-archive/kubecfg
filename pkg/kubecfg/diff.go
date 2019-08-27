@@ -41,7 +41,7 @@ var ErrDiffFound = fmt.Errorf("Differences found.")
 // Matches all the line starts on a diff text, which is where we put diff markers and indent
 var DiffLineStart = regexp.MustCompile("(^|\n)(.)")
 
-var DiffKeyValue = regexp.MustCompile(`"([[:alnum:]_-]+)":\s"([[:alnum:]=+]+)",?`)
+var DiffKeyValue = regexp.MustCompile(`"([-._a-zA-Z0-9]+)":\s"([[:alnum:]=+]+)",?`)
 
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
