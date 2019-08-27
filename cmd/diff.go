@@ -21,10 +21,14 @@ import (
 	"github.com/bitnami/kubecfg/pkg/kubecfg"
 )
 
-const flagDiffStrategy = "diff-strategy"
+const (
+	flagDiffStrategy = "diff-strategy"
+	flagOmitSecrets  = "omit-secrets"
+)
 
 func init() {
 	diffCmd.PersistentFlags().String(flagDiffStrategy, "all", "Diff strategy, all or subset.")
+	diffCmd.PersistentFlags().Bool(flagOmitSecrets, false, "hide secret details when showing diff")
 	RootCmd.AddCommand(diffCmd)
 }
 
@@ -39,6 +43,11 @@ var diffCmd = &cobra.Command{
 		c := kubecfg.DiffCmd{}
 
 		c.DiffStrategy, err = flags.GetString(flagDiffStrategy)
+		if err != nil {
+			return err
+		}
+
+		c.OmitSecrets, err = flags.GetBool(flagOmitSecrets)
 		if err != nil {
 			return err
 		}
