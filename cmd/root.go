@@ -250,69 +250,47 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 
 	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
-	injectValuesFromStringsViaFlag := func(flagName string, accept func(name string, value string)) error {
+	for flagName, spec := range map[string]struct {
+		inject   func(string, string)
+		fromFile bool
+	}{
+		flagExtVar:      {vm.ExtVar, false},
+		flagExtVarFile:  {vm.ExtVar, true},
+		flagExtCode:     {vm.ExtCode, false},
+		flagExtCodeFile: {vm.ExtCode, true},
+		flagTLAVar:      {vm.TLAVar, false},
+		flagTLAVarFile:  {vm.TLAVar, true},
+		flagTLACode:     {vm.TLACode, false},
+		flagTLACodeFile: {vm.TLACode, true},
+	} {
 		entries, err := flags.GetStringSlice(flagName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, entry := range entries {
 			kv := strings.SplitN(entry, "=", 2)
-			switch len(kv) {
-			case 1:
-				if v, present := os.LookupEnv(kv[0]); present {
-					accept(kv[0], v)
-				} else {
-					return fmt.Errorf("Missing environment variable: %s", kv[0])
+			if spec.fromFile {
+				if len(kv) != 2 {
+					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagName, entry)
 				}
-			case 2:
-				accept(kv[0], kv[1])
+				v, err := ioutil.ReadFile(kv[1])
+				if err != nil {
+					return nil, err
+				}
+				spec.inject(kv[0], string(v))
+			} else {
+				switch len(kv) {
+				case 1:
+					if v, present := os.LookupEnv(kv[0]); present {
+						spec.inject(kv[0], v)
+					} else {
+						return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+					}
+				case 2:
+					spec.inject(kv[0], kv[1])
+				}
 			}
 		}
-		return nil
-	}
-
-	injectValuesFromFileViaFlag := func(flagName string, accept func(name string, value string)) error {
-		entries, err := flags.GetStringSlice(flagName)
-		if err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			kv := strings.SplitN(entry, "=", 2)
-			if len(kv) != 2 {
-				return fmt.Errorf("Failed to parse %s: missing '=' in %s", flagName, entry)
-			}
-			v, err := ioutil.ReadFile(kv[1])
-			if err != nil {
-				return err
-			}
-			accept(kv[0], string(v))
-		}
-		return nil
-	}
-
-	if err := injectValuesFromStringsViaFlag(flagExtVar, vm.ExtVar); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromFileViaFlag(flagExtVarFile, vm.ExtVar); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromStringsViaFlag(flagExtCode, vm.ExtCode); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromFileViaFlag(flagExtCodeFile, vm.ExtCode); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromStringsViaFlag(flagTLAVar, vm.TLAVar); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromFileViaFlag(flagTLAVarFile, vm.TLAVar); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromStringsViaFlag(flagTLACode, vm.TLACode); err != nil {
-		return nil, err
-	}
-	if err := injectValuesFromFileViaFlag(flagTLACodeFile, vm.TLACode); err != nil {
-		return nil, err
 	}
 
 	resolver, err := buildResolver(cmd)
