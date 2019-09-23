@@ -250,20 +250,21 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 
 	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
-	for flagName, spec := range map[string]struct {
+	for _, spec := range []struct {
+		flagName string
 		inject   func(string, string)
 		fromFile bool
 	}{
-		flagExtVar:      {vm.ExtVar, false},
-		flagExtVarFile:  {vm.ExtVar, true},
-		flagExtCode:     {vm.ExtCode, false},
-		flagExtCodeFile: {vm.ExtCode, true},
-		flagTLAVar:      {vm.TLAVar, false},
-		flagTLAVarFile:  {vm.TLAVar, true},
-		flagTLACode:     {vm.TLACode, false},
-		flagTLACodeFile: {vm.TLACode, true},
+		{flagExtVar, vm.ExtVar, false},
+		{flagExtVarFile, vm.ExtVar, true},
+		{flagExtCode, vm.ExtCode, false},
+		{flagExtCodeFile, vm.ExtCode, true},
+		{flagTLAVar, vm.TLAVar, false},
+		{flagTLAVarFile, vm.TLAVar, true},
+		{flagTLACode, vm.TLACode, false},
+		{flagTLACodeFile, vm.TLACode, true},
 	} {
-		entries, err := flags.GetStringSlice(flagName)
+		entries, err := flags.GetStringSlice(spec.flagName)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +272,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 			kv := strings.SplitN(entry, "=", 2)
 			if spec.fromFile {
 				if len(kv) != 2 {
-					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagName, entry)
+					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", spec.flagName, entry)
 				}
 				v, err := ioutil.ReadFile(kv[1])
 				if err != nil {
