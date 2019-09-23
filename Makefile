@@ -40,7 +40,7 @@ kubecfg:
 	CGO_ENABLED=0 $(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
 
 generate:
-	$(GO) generate -x $(GO_PACKAGES)
+	$(GO) generate -x $(GO_FLAGS) $(GO_PACKAGES)
 
 test: gotest jsonnettest
 
