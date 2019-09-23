@@ -48,15 +48,19 @@ import (
 )
 
 const (
-	flagVerbose    = "verbose"
-	flagJpath      = "jpath"
-	flagJUrl       = "jurl"
-	flagExtVar     = "ext-str"
-	flagExtVarFile = "ext-str-file"
-	flagTlaVar     = "tla-str"
-	flagTlaVarFile = "tla-str-file"
-	flagResolver   = "resolve-images"
-	flagResolvFail = "resolve-images-error"
+	flagVerbose     = "verbose"
+	flagJpath       = "jpath"
+	flagJUrl        = "jurl"
+	flagExtVar      = "ext-str"
+	flagExtVarFile  = "ext-str-file"
+	flagExtCode     = "ext-code"
+	flagExtCodeFile = "ext-code-file"
+	flagTLAVar      = "tla-str"
+	flagTLAVarFile  = "tla-str-file"
+	flagTLACode     = "tla-code"
+	flagTLACodeFile = "tla-code-file"
+	flagResolver    = "resolve-images"
+	flagResolvFail  = "resolve-images-error"
 )
 
 var clientConfig clientcmd.ClientConfig
@@ -64,15 +68,21 @@ var overrides clientcmd.ConfigOverrides
 
 func init() {
 	RootCmd.PersistentFlags().CountP(flagVerbose, "v", "Increase verbosity. May be given multiple times.")
-	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional jsonnet library search path, appended to the ones in the KUBECFG_JPATH env var. May be repeated.")
+	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional Jsonnet library search path, appended to the ones in the KUBECFG_JPATH env var. May be repeated.")
 	RootCmd.MarkPersistentFlagFilename(flagJpath)
-	RootCmd.PersistentFlags().StringArrayP(flagJUrl, "U", nil, "Additional jsonnet library search path given as a URL. May be repeated.")
-	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables")
-	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variable from a file")
+	RootCmd.PersistentFlags().StringArrayP(flagJUrl, "U", nil, "Additional Jsonnet library search path given as a URL. May be repeated.")
+	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables with string values")
+	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variables with string values from files")
 	RootCmd.MarkPersistentFlagFilename(flagExtVarFile)
-	RootCmd.PersistentFlags().StringSliceP(flagTlaVar, "A", nil, "Values of top level arguments")
-	RootCmd.PersistentFlags().StringSlice(flagTlaVarFile, nil, "Read top level argument from a file")
-	RootCmd.MarkPersistentFlagFilename(flagTlaVarFile)
+	RootCmd.PersistentFlags().StringSlice(flagExtCode, nil, "Values of external variables with values supplied as Jsonnet code")
+	RootCmd.PersistentFlags().StringSlice(flagExtCodeFile, nil, "Read external variables with values supplied as Jsonnet code from files")
+	RootCmd.MarkPersistentFlagFilename(flagExtCodeFile)
+	RootCmd.PersistentFlags().StringSliceP(flagTLAVar, "A", nil, "Values of top level arguments with string values")
+	RootCmd.PersistentFlags().StringSlice(flagTLAVarFile, nil, "Read top level arguments with string values from files")
+	RootCmd.MarkPersistentFlagFilename(flagTLAVarFile)
+	RootCmd.PersistentFlags().StringSlice(flagTLACode, nil, "Values of top level arguments with values supplied as Jsonnet code")
+	RootCmd.PersistentFlags().StringSlice(flagTLACodeFile, nil, "Read top level arguments with values supplied as Jsonnet code from files")
+	RootCmd.MarkPersistentFlagFilename(flagTLACodeFile)
 	RootCmd.PersistentFlags().String(flagResolver, "noop", "Change implementation of resolveImage native function. One of: noop, registry")
 	RootCmd.PersistentFlags().String(flagResolvFail, "warn", "Action when resolveImage fails. One of ignore,warn,error")
 
@@ -240,74 +250,48 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 
 	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
-	extvars, err := flags.GetStringSlice(flagExtVar)
-	if err != nil {
-		return nil, err
-	}
-	for _, extvar := range extvars {
-		kv := strings.SplitN(extvar, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.ExtVar(kv[0], v)
-			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
-			}
-		case 2:
-			vm.ExtVar(kv[0], kv[1])
-		}
-	}
-
-	extvarfiles, err := flags.GetStringSlice(flagExtVarFile)
-	if err != nil {
-		return nil, err
-	}
-	for _, extvar := range extvarfiles {
-		kv := strings.SplitN(extvar, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagExtVarFile, extvar)
-		}
-		v, err := ioutil.ReadFile(kv[1])
+	for _, spec := range []struct {
+		flagName string
+		inject   func(string, string)
+		fromFile bool
+	}{
+		{flagExtVar, vm.ExtVar, false},
+		{flagExtVarFile, vm.ExtVar, true},
+		{flagExtCode, vm.ExtCode, false},
+		{flagExtCodeFile, vm.ExtCode, true},
+		{flagTLAVar, vm.TLAVar, false},
+		{flagTLAVarFile, vm.TLAVar, true},
+		{flagTLACode, vm.TLACode, false},
+		{flagTLACodeFile, vm.TLACode, true},
+	} {
+		entries, err := flags.GetStringSlice(spec.flagName)
 		if err != nil {
 			return nil, err
 		}
-		vm.ExtVar(kv[0], string(v))
-	}
-
-	tlavars, err := flags.GetStringSlice(flagTlaVar)
-	if err != nil {
-		return nil, err
-	}
-	for _, tlavar := range tlavars {
-		kv := strings.SplitN(tlavar, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.TLAVar(kv[0], v)
+		for _, entry := range entries {
+			kv := strings.SplitN(entry, "=", 2)
+			if spec.fromFile {
+				if len(kv) != 2 {
+					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", spec.flagName, entry)
+				}
+				v, err := ioutil.ReadFile(kv[1])
+				if err != nil {
+					return nil, err
+				}
+				spec.inject(kv[0], string(v))
 			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+				switch len(kv) {
+				case 1:
+					if v, present := os.LookupEnv(kv[0]); present {
+						spec.inject(kv[0], v)
+					} else {
+						return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+					}
+				case 2:
+					spec.inject(kv[0], kv[1])
+				}
 			}
-		case 2:
-			vm.TLAVar(kv[0], kv[1])
 		}
-	}
-
-	tlavarfiles, err := flags.GetStringSlice(flagTlaVarFile)
-	if err != nil {
-		return nil, err
-	}
-	for _, tlavar := range tlavarfiles {
-		kv := strings.SplitN(tlavar, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagTlaVarFile, tlavar)
-		}
-		v, err := ioutil.ReadFile(kv[1])
-		if err != nil {
-			return nil, err
-		}
-		vm.TLAVar(kv[0], string(v))
 	}
 
 	resolver, err := buildResolver(cmd)
