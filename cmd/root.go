@@ -250,144 +250,69 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 
 	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
-	extvars, err := flags.GetStringSlice(flagExtVar)
-	if err != nil {
-		return nil, err
-	}
-	for _, extvar := range extvars {
-		kv := strings.SplitN(extvar, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.ExtVar(kv[0], v)
-			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
-			}
-		case 2:
-			vm.ExtVar(kv[0], kv[1])
-		}
-	}
-
-	extvarfiles, err := flags.GetStringSlice(flagExtVarFile)
-	if err != nil {
-		return nil, err
-	}
-	for _, extvar := range extvarfiles {
-		kv := strings.SplitN(extvar, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagExtVarFile, extvar)
-		}
-		v, err := ioutil.ReadFile(kv[1])
+	injectValuesFromStringsViaFlag := func(flagName string, accept func(name string, value string)) error {
+		entries, err := flags.GetStringSlice(flagName)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		vm.ExtVar(kv[0], string(v))
-	}
-
-	extcodes, err := flags.GetStringSlice(flagExtCode)
-	if err != nil {
-		return nil, err
-	}
-	for _, extcode := range extcodes {
-		kv := strings.SplitN(extcode, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.ExtCode(kv[0], v)
-			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+		for _, entry := range entries {
+			kv := strings.SplitN(entry, "=", 2)
+			switch len(kv) {
+			case 1:
+				if v, present := os.LookupEnv(kv[0]); present {
+					accept(kv[0], v)
+				} else {
+					return fmt.Errorf("Missing environment variable: %s", kv[0])
+				}
+			case 2:
+				accept(kv[0], kv[1])
 			}
-		case 2:
-			vm.ExtCode(kv[0], kv[1])
 		}
+		return nil
 	}
 
-	extcodefiles, err := flags.GetStringSlice(flagExtCodeFile)
-	if err != nil {
-		return nil, err
-	}
-	for _, extcode := range extcodefiles {
-		kv := strings.SplitN(extcode, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagExtCodeFile, extcode)
-		}
-		v, err := ioutil.ReadFile(kv[1])
+	injectValuesFromFileViaFlag := func(flagName string, accept func(name string, value string)) error {
+		entries, err := flags.GetStringSlice(flagName)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		vm.ExtCode(kv[0], string(v))
-	}
-
-	tlavars, err := flags.GetStringSlice(flagTLAVar)
-	if err != nil {
-		return nil, err
-	}
-	for _, tlavar := range tlavars {
-		kv := strings.SplitN(tlavar, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.TLAVar(kv[0], v)
-			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+		for _, entry := range entries {
+			kv := strings.SplitN(entry, "=", 2)
+			if len(kv) != 2 {
+				return fmt.Errorf("Failed to parse %s: missing '=' in %s", flagName, entry)
 			}
-		case 2:
-			vm.TLAVar(kv[0], kv[1])
-		}
-	}
-
-	tlavarfiles, err := flags.GetStringSlice(flagTLAVarFile)
-	if err != nil {
-		return nil, err
-	}
-	for _, tlavar := range tlavarfiles {
-		kv := strings.SplitN(tlavar, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagTLAVarFile, tlavar)
-		}
-		v, err := ioutil.ReadFile(kv[1])
-		if err != nil {
-			return nil, err
-		}
-		vm.TLAVar(kv[0], string(v))
-	}
-
-	tlacodes, err := flags.GetStringSlice(flagTLACode)
-	if err != nil {
-		return nil, err
-	}
-	for _, tlacode := range tlacodes {
-		kv := strings.SplitN(tlacode, "=", 2)
-		switch len(kv) {
-		case 1:
-			v, present := os.LookupEnv(kv[0])
-			if present {
-				vm.TLACode(kv[0], v)
-			} else {
-				return nil, fmt.Errorf("Missing environment variable: %s", kv[0])
+			v, err := ioutil.ReadFile(kv[1])
+			if err != nil {
+				return err
 			}
-		case 2:
-			vm.TLACode(kv[0], kv[1])
+			accept(kv[0], string(v))
 		}
+		return nil
 	}
 
-	tlacodefiles, err := flags.GetStringSlice(flagTLACodeFile)
-	if err != nil {
+	if err := injectValuesFromStringsViaFlag(flagExtVar, vm.ExtVar); err != nil {
 		return nil, err
 	}
-	for _, tlacode := range tlacodefiles {
-		kv := strings.SplitN(tlacode, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", flagTLACodeFile, tlacode)
-		}
-		v, err := ioutil.ReadFile(kv[1])
-		if err != nil {
-			return nil, err
-		}
-		vm.TLACode(kv[0], string(v))
+	if err := injectValuesFromFileViaFlag(flagExtVarFile, vm.ExtVar); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromStringsViaFlag(flagExtCode, vm.ExtCode); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromFileViaFlag(flagExtCodeFile, vm.ExtCode); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromStringsViaFlag(flagTLAVar, vm.TLAVar); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromFileViaFlag(flagTLAVarFile, vm.TLAVar); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromStringsViaFlag(flagTLACode, vm.TLACode); err != nil {
+		return nil, err
+	}
+	if err := injectValuesFromFileViaFlag(flagTLACodeFile, vm.TLACode); err != nil {
+		return nil, err
 	}
 
 	resolver, err := buildResolver(cmd)
