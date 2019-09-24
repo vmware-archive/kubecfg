@@ -21,7 +21,6 @@ import (
 	goflag "flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -253,16 +252,19 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 	for _, spec := range []struct {
 		flagName string
 		inject   func(string, string)
+		isCode   bool
 		fromFile bool
 	}{
-		{flagExtVar, vm.ExtVar, false},
-		{flagExtVarFile, vm.ExtVar, true},
-		{flagExtCode, vm.ExtCode, false},
-		{flagExtCodeFile, vm.ExtCode, true},
-		{flagTLAVar, vm.TLAVar, false},
-		{flagTLAVarFile, vm.TLAVar, true},
-		{flagTLACode, vm.TLACode, false},
-		{flagTLACodeFile, vm.TLACode, true},
+		{flagExtVar, vm.ExtVar, false, false},
+		// Treat as code to evaluate "importstr":
+		{flagExtVarFile, vm.ExtCode, false, true},
+		{flagExtCode, vm.ExtCode, true, false},
+		{flagExtCodeFile, vm.ExtCode, true, true},
+		{flagTLAVar, vm.TLAVar, false, false},
+		// Treat as code to evaluate "importstr":
+		{flagTLAVarFile, vm.TLACode, false, true},
+		{flagTLACode, vm.TLACode, true, false},
+		{flagTLACodeFile, vm.TLACode, true, true},
 	} {
 		entries, err := flags.GetStringSlice(spec.flagName)
 		if err != nil {
@@ -274,11 +276,13 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 				if len(kv) != 2 {
 					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", spec.flagName, entry)
 				}
-				v, err := ioutil.ReadFile(kv[1])
-				if err != nil {
-					return nil, err
+				var imp string
+				if spec.isCode {
+					imp = "import"
+				} else {
+					imp = "importstr"
 				}
-				spec.inject(kv[0], string(v))
+				spec.inject(kv[0], fmt.Sprintf("%s @'%s'", imp, strings.ReplaceAll(kv[1], "'", "''")))
 			} else {
 				switch len(kv) {
 				case 1:
