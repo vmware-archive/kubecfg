@@ -247,7 +247,12 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		log.Debugln("Jsonnet search path:", u)
 	}
 
-	vm.Importer(utils.MakeUniversalImporter(searchUrls))
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to determine current working directory: %v", err)
+	}
+
+	vm.Importer(utils.MakeUniversalImporter(searchUrls, dirURL(cwd)))
 
 	for _, spec := range []struct {
 		flagName string

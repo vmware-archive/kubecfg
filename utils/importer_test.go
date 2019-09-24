@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"reflect"
@@ -31,6 +32,10 @@ func TestExpandImportToCandidateURLs(t *testing.T) {
 		BaseSearchURLs: []*url.URL{
 			{Scheme: "file", Path: "/first/base/search/"},
 		},
+		extVarBaseURL: &url.URL{
+			Scheme: "file",
+			Path:   "/current/working/dir/",
+		},
 	}
 
 	t.Run("Absolute URL in import statement yields a single candidate", func(t *testing.T) {
@@ -53,4 +58,23 @@ func TestExpandImportToCandidateURLs(t *testing.T) {
 			t.Errorf("Expected %v, got %v", expected, urls)
 		}
 	})
+
+	for _, test := range []struct {
+		description string
+		varKind     string
+	}{
+		{"external variable", "extvar"},
+		{"top-level variable", "top-level-arg"},
+	} {
+		t.Run(fmt.Sprintf("Relative URL in import statement used as %s yields candidate relative to base URL", test.description), func(t *testing.T) {
+			urls, _ := importer.expandImportToCandidateURLs(fmt.Sprintf("<%s:example>", test.varKind), "../sought.jsonnet")
+			expected := []*url.URL{
+				{Scheme: "file", Host: "", Path: "/current/working/sought.jsonnet"},
+				{Scheme: "file", Host: "", Path: "/first/base/sought.jsonnet"},
+			}
+			if !reflect.DeepEqual(urls, expected) {
+				t.Errorf("Expected %v, got %v", expected, urls)
+			}
+		})
+	}
 }
