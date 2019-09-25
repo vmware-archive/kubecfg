@@ -29,7 +29,7 @@ require (
 	github.com/sergi/go-diff v0.0.0-20170409071739-feef008d51ad
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.0-20180319062004-c439c4fa0937
-	github.com/spf13/pflag v0.0.0-20180220143236-ee5fd03fd6ac // indirect
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.3.0
 	go.opencensus.io v0.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
@@ -44,3 +44,5 @@ require (
 	k8s.io/kubernetes v1.13.4
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
+
+go 1.13
