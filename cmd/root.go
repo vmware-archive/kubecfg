@@ -252,7 +252,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		return nil, fmt.Errorf("Unable to determine current working directory: %v", err)
 	}
 
-	vm.Importer(utils.MakeUniversalImporter(searchUrls, dirURL(cwd)))
+	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
 	for _, spec := range []struct {
 		flagName string
@@ -281,13 +281,21 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 				if len(kv) != 2 {
 					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", spec.flagName, entry)
 				}
+				// Ensure that the import path we construct here is absolute, so that our Importer
+				// won't try to glean from an extVar or TLA reference the context necessary to
+				// resolve a relative path.
+				path := kv[1]
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(cwd, path)
+				}
+				u := &url.URL{Scheme: "file", Path: path}
 				var imp string
 				if spec.isCode {
 					imp = "import"
 				} else {
 					imp = "importstr"
 				}
-				spec.inject(kv[0], fmt.Sprintf("%s @'%s'", imp, strings.ReplaceAll(kv[1], "'", "''")))
+				spec.inject(kv[0], fmt.Sprintf("%s @'%s'", imp, strings.ReplaceAll(u.String(), "'", "''")))
 			} else {
 				switch len(kv) {
 				case 1:

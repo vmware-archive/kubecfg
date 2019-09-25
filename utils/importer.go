@@ -62,7 +62,7 @@ A real-world example:
     will be resolved as https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master/ksonnet.beta.2/k8s.libsonnet
 	and downloaded from that location.
 */
-func MakeUniversalImporter(searchURLs []*url.URL, extVarBaseURL *url.URL) jsonnet.Importer {
+func MakeUniversalImporter(searchURLs []*url.URL) jsonnet.Importer {
 	// Reconstructed copy of http.DefaultTransport (to avoid
 	// modifying the default)
 	t := &http.Transport{
@@ -83,7 +83,6 @@ func MakeUniversalImporter(searchURLs []*url.URL, extVarBaseURL *url.URL) jsonne
 
 	return &universalImporter{
 		BaseSearchURLs: searchURLs,
-		extVarBaseURL:  extVarBaseURL,
 		HTTPClient:     &http.Client{Transport: t},
 		cache:          map[string]jsonnet.Contents{},
 	}
@@ -91,7 +90,6 @@ func MakeUniversalImporter(searchURLs []*url.URL, extVarBaseURL *url.URL) jsonne
 
 type universalImporter struct {
 	BaseSearchURLs []*url.URL
-	extVarBaseURL  *url.URL
 	HTTPClient     *http.Client
 	cache          map[string]jsonnet.Contents
 }
@@ -101,7 +99,7 @@ func (importer *universalImporter) Import(importedFrom, importedPath string) (js
 
 	candidateURLs, err := importer.expandImportToCandidateURLs(importedFrom, importedPath)
 	if err != nil {
-		return jsonnet.Contents{}, "", fmt.Errorf("Could not get candidate URLs for when importing %s (imported from %s)", importedPath, importedFrom)
+		return jsonnet.Contents{}, "", fmt.Errorf("Could not get candidate URLs for when importing %s (imported from %s): %v", importedPath, importedFrom, err)
 	}
 
 	var tried []string
@@ -156,22 +154,13 @@ func (importer *universalImporter) expandImportToCandidateURLs(importedFrom, imp
 		return []*url.URL{importedPathURL}, nil
 	}
 
-	var importDirURL *url.URL
-	// Is the import coming from a source nominated by the "--ext-code-file," "--ext-str-file,"
-	// "--tla-code-file," or "--tla-str-file flags"? If so, resolve relative import paths against
-	// the specially configured base directory.
-	if extVarKindRE.MatchString(importedFrom) {
-		importDirURL = importer.extVarBaseURL
-	} else {
-		importDirURL, err = url.Parse(importedFrom)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid import dir %q", importedFrom)
-		}
+	importDirURL, err := url.Parse(importedFrom)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid import dir %q: %v", importedFrom, err)
 	}
 
-	candidateURLs := make([]*url.URL, 0, len(importer.BaseSearchURLs)+1)
-
-	candidateURLs = append(candidateURLs, importDirURL.ResolveReference(importedPathURL))
+	candidateURLs := make([]*url.URL, 1, len(importer.BaseSearchURLs)+1)
+	candidateURLs[0] = importDirURL.ResolveReference(importedPathURL)
 
 	for _, u := range importer.BaseSearchURLs {
 		candidateURLs = append(candidateURLs, u.ResolveReference(importedPathURL))
