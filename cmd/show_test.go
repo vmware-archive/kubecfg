@@ -23,8 +23,20 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
+
+func resetFlagsOf(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if sv, ok := f.Value.(pflag.SliceValue); ok {
+			sv.Replace(nil)
+		} else {
+			f.Value.Set(f.DefValue)
+		}
+	})
+}
 
 func cmdOutput(t *testing.T, args []string) string {
 	var buf bytes.Buffer
@@ -86,6 +98,7 @@ func TestShow(t *testing.T) {
 			"-V", "anVar",
 			"--ext-str-file", "filevar=" + filepath.FromSlash("../testdata/extvar.file"),
 		})
+		defer resetFlagsOf(RootCmd)
 
 		t.Log("output is", output)
 		actual, err := parser(output)
@@ -136,6 +149,7 @@ func TestShowUsingExtVarFiles(t *testing.T) {
 		"--tla-code-file", "sink=sink.jsonnet",
 		"--ext-str-file", "filevar=var.txt",
 	})
+	defer resetFlagsOf(RootCmd)
 
 	t.Log("output is", output)
 	var actual interface{}
