@@ -21,7 +21,6 @@ import (
 	goflag "flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -248,21 +247,29 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		log.Debugln("Jsonnet search path:", u)
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to determine current working directory: %v", err)
+	}
+
 	vm.Importer(utils.MakeUniversalImporter(searchUrls))
 
 	for _, spec := range []struct {
 		flagName string
 		inject   func(string, string)
+		isCode   bool
 		fromFile bool
 	}{
-		{flagExtVar, vm.ExtVar, false},
-		{flagExtVarFile, vm.ExtVar, true},
-		{flagExtCode, vm.ExtCode, false},
-		{flagExtCodeFile, vm.ExtCode, true},
-		{flagTLAVar, vm.TLAVar, false},
-		{flagTLAVarFile, vm.TLAVar, true},
-		{flagTLACode, vm.TLACode, false},
-		{flagTLACodeFile, vm.TLACode, true},
+		{flagExtVar, vm.ExtVar, false, false},
+		// Treat as code to evaluate "importstr":
+		{flagExtVarFile, vm.ExtCode, false, true},
+		{flagExtCode, vm.ExtCode, true, false},
+		{flagExtCodeFile, vm.ExtCode, true, true},
+		{flagTLAVar, vm.TLAVar, false, false},
+		// Treat as code to evaluate "importstr":
+		{flagTLAVarFile, vm.TLACode, false, true},
+		{flagTLACode, vm.TLACode, true, false},
+		{flagTLACodeFile, vm.TLACode, true, true},
 	} {
 		entries, err := flags.GetStringSlice(spec.flagName)
 		if err != nil {
@@ -274,11 +281,21 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 				if len(kv) != 2 {
 					return nil, fmt.Errorf("Failed to parse %s: missing '=' in %s", spec.flagName, entry)
 				}
-				v, err := ioutil.ReadFile(kv[1])
-				if err != nil {
-					return nil, err
+				// Ensure that the import path we construct here is absolute, so that our Importer
+				// won't try to glean from an extVar or TLA reference the context necessary to
+				// resolve a relative path.
+				path := kv[1]
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(cwd, path)
 				}
-				spec.inject(kv[0], string(v))
+				u := &url.URL{Scheme: "file", Path: path}
+				var imp string
+				if spec.isCode {
+					imp = "import"
+				} else {
+					imp = "importstr"
+				}
+				spec.inject(kv[0], fmt.Sprintf("%s @'%s'", imp, strings.ReplaceAll(u.String(), "'", "''")))
 			} else {
 				switch len(kv) {
 				case 1:

@@ -23,8 +23,20 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
+
+func resetFlagsOf(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if sv, ok := f.Value.(pflag.SliceValue); ok {
+			sv.Replace(nil)
+		} else {
+			f.Value.Set(f.DefValue)
+		}
+	})
+}
 
 func cmdOutput(t *testing.T, args []string) string {
 	var buf bytes.Buffer
@@ -72,7 +84,7 @@ func TestShow(t *testing.T) {
 	for format, parser := range formats {
 		expected, err := parser(expected)
 		if err != nil {
-			t.Errorf("error parsing *expected* value: %s", err)
+			t.Fatalf("error parsing *expected* value: %v", err)
 		}
 
 		os.Setenv("anVar", "aVal2")
@@ -86,13 +98,65 @@ func TestShow(t *testing.T) {
 			"-V", "anVar",
 			"--ext-str-file", "filevar=" + filepath.FromSlash("../testdata/extvar.file"),
 		})
+		defer resetFlagsOf(RootCmd)
 
 		t.Log("output is", output)
 		actual, err := parser(output)
 		if err != nil {
-			t.Errorf("error parsing output of format %s: %s", format, err)
+			t.Errorf("error parsing output of format %s: %v", format, err)
 		} else if !reflect.DeepEqual(expected, actual) {
 			t.Errorf("format %s expected != actual: %s != %s", format, expected, actual)
 		}
+	}
+}
+
+func TestShowUsingExtVarFiles(t *testing.T) {
+	expectedText := `
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "sink"
+  },
+  "data": {
+    "input": {
+      "greeting": "Hello!",
+      "helper": true,
+      "top": true
+    },
+    "var": "I'm a var!"
+  }
+}
+`
+	var expected interface{}
+	if err := json.Unmarshal([]byte(expectedText), &expected); err != nil {
+		t.Fatalf("error parsing *expected* value: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current working directory: %v", err)
+	}
+	if err := os.Chdir("../testdata/extvars/feed"); err != nil {
+		t.Fatalf("failed to change to target directory: %v", err)
+	}
+	defer os.Chdir(cwd)
+
+	output := cmdOutput(t, []string{"show",
+		"top.jsonnet",
+		"-o", "json",
+		"--tla-code-file", "input=input.jsonnet",
+		"--tla-code-file", "sink=sink.jsonnet",
+		"--ext-str-file", "filevar=var.txt",
+	})
+	defer resetFlagsOf(RootCmd)
+
+	t.Log("output is", output)
+	var actual interface{}
+	err = json.Unmarshal([]byte(output), &actual)
+	if err != nil {
+		t.Errorf("error parsing output: %v", err)
+	} else if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected != actual: %s != %s", expected, actual)
 	}
 }

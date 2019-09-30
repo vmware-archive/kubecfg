@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 )
 
 var errNotFound = errors.New("Not found")
+
+var extVarKindRE = regexp.MustCompile("^<(?:extvar|top-level-arg):.+>$")
 
 //go:generate go-bindata -nometadata -ignore .*_test\.|~$DOLLAR -pkg $GOPACKAGE -o bindata.go -prefix ../ ../lib/...
 func newInternalFS(prefix string) http.FileSystem {
@@ -43,23 +46,23 @@ func newInternalFS(prefix string) http.FileSystem {
 }
 
 /*
-MakeUniversalImporter creates an importer that handles resolving imports from the filesystem and http/s.
+MakeUniversalImporter creates an importer that handles resolving imports from the filesystem and HTTP/S.
 
 In addition to the standard importer, supports:
   - URLs in import statements
   - URLs in library search paths
 
 A real-world example:
-  - you have https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master in your search URLs
-  - you evaluate a local file which calls `import "ksonnet.beta.2/k.libsonnet"`
-  - if the `ksonnet.beta.2/k.libsonnet`` is not located in the current workdir, an attempt
+  - You have https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master in your search URLs.
+  - You evaluate a local file which calls `import "ksonnet.beta.2/k.libsonnet"`.
+  - If the `ksonnet.beta.2/k.libsonnet`` is not located in the current working directory, an attempt
     will be made to follow the search path, i.e. to download
-    https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master/ksonnet.beta.2/k.libsonnet
-  - since the downloaded `k.libsonnet`` file turn in contains `import "k8s.libsonnet"`, the import
+    https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master/ksonnet.beta.2/k.libsonnet.
+  - Since the downloaded `k.libsonnet`` file turn in contains `import "k8s.libsonnet"`, the import
     will be resolved as https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master/ksonnet.beta.2/k8s.libsonnet
-	and downloaded from that location
+	and downloaded from that location.
 */
-func MakeUniversalImporter(searchUrls []*url.URL) jsonnet.Importer {
+func MakeUniversalImporter(searchURLs []*url.URL) jsonnet.Importer {
 	// Reconstructed copy of http.DefaultTransport (to avoid
 	// modifying the default)
 	t := &http.Transport{
@@ -79,7 +82,7 @@ func MakeUniversalImporter(searchUrls []*url.URL) jsonnet.Importer {
 	t.RegisterProtocol("internal", http.NewFileTransport(newInternalFS("lib")))
 
 	return &universalImporter{
-		BaseSearchURLs: searchUrls,
+		BaseSearchURLs: searchURLs,
 		HTTPClient:     &http.Client{Transport: t},
 		cache:          map[string]jsonnet.Contents{},
 	}
@@ -91,12 +94,12 @@ type universalImporter struct {
 	cache          map[string]jsonnet.Contents
 }
 
-func (importer *universalImporter) Import(dir, importedPath string) (jsonnet.Contents, string, error) {
-	log.Debugf("Importing %q from %q", importedPath, dir)
+func (importer *universalImporter) Import(importedFrom, importedPath string) (jsonnet.Contents, string, error) {
+	log.Debugf("Importing %q from %q", importedPath, importedFrom)
 
-	candidateURLs, err := importer.expandImportToCandidateURLs(dir, importedPath)
+	candidateURLs, err := importer.expandImportToCandidateURLs(importedFrom, importedPath)
 	if err != nil {
-		return jsonnet.Contents{}, "", fmt.Errorf("Could not get candidate URLs for when importing %s (import dir is %s)", importedPath, dir)
+		return jsonnet.Contents{}, "", fmt.Errorf("Could not get candidate URLs for when importing %s (imported from %s): %v", importedPath, importedFrom, err)
 	}
 
 	var tried []string
@@ -142,7 +145,7 @@ func (importer *universalImporter) tryImport(url string) (jsonnet.Contents, erro
 	return jsonnet.MakeContents(string(bodyBytes)), nil
 }
 
-func (importer *universalImporter) expandImportToCandidateURLs(dir, importedPath string) ([]*url.URL, error) {
+func (importer *universalImporter) expandImportToCandidateURLs(importedFrom, importedPath string) ([]*url.URL, error) {
 	importedPathURL, err := url.Parse(importedPath)
 	if err != nil {
 		return nil, fmt.Errorf("Import path %q is not valid", importedPath)
@@ -151,14 +154,13 @@ func (importer *universalImporter) expandImportToCandidateURLs(dir, importedPath
 		return []*url.URL{importedPathURL}, nil
 	}
 
-	importDirURL, err := url.Parse(dir)
+	importDirURL, err := url.Parse(importedFrom)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid import dir %q", dir)
+		return nil, fmt.Errorf("Invalid import dir %q: %v", importedFrom, err)
 	}
 
-	candidateURLs := make([]*url.URL, 0, len(importer.BaseSearchURLs)+1)
-
-	candidateURLs = append(candidateURLs, importDirURL.ResolveReference(importedPathURL))
+	candidateURLs := make([]*url.URL, 1, len(importer.BaseSearchURLs)+1)
+	candidateURLs[0] = importDirURL.ResolveReference(importedPathURL)
 
 	for _, u := range importer.BaseSearchURLs {
 		candidateURLs = append(candidateURLs, u.ResolveReference(importedPathURL))
