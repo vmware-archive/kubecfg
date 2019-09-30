@@ -111,6 +111,17 @@ func TestRemoveFields(t *testing.T) {
 			live:     "b",
 			expected: "b",
 		},
+		// Check we can handle mismatched types.
+		{
+			config:   map[string]interface{}{"foo": "bar"},
+			live:     []interface{}{"foo", "bar"},
+			expected: []interface{}{"foo", "bar"},
+		},
+		{
+			config:   []interface{}{"foo", "bar"},
+			live:     map[string]interface{}{"foo": "bar"},
+			expected: map[string]interface{}{"foo": "bar"},
+		},
 		// Check we handle empty configs by copying them as if were live
 		// (API won't return them)
 		{

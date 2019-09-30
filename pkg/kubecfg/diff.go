@@ -178,12 +178,15 @@ func isEmptyValue(i interface{}) bool {
 func removeFields(config, live interface{}) interface{} {
 	switch c := config.(type) {
 	case map[string]interface{}:
-		return removeMapFields(c, live.(map[string]interface{}))
+		if live, ok := live.(map[string]interface{}); ok {
+			return removeMapFields(c, live)
+		}
 	case []interface{}:
-		return removeListFields(c, live.([]interface{}))
-	default:
-		return live
+		if live, ok := live.([]interface{}); ok {
+			return removeListFields(c, live)
+		}
 	}
+	return live
 }
 
 func removeMapFields(config, live map[string]interface{}) map[string]interface{} {
