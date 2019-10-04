@@ -9,4 +9,4 @@ RUN make
 
 FROM gcr.io/distroless/base
 COPY --from=build /go/src/kubecfg/kubecfg /
-CMD ["/kubecfg"]
+ENTRYPOINT ["/kubecfg"]
