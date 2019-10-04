@@ -15,7 +15,7 @@
 
 VERSION ?= dev-$(shell date +%FT%T%z)
 
-BUILDER ?= podman
+BUILDER ?= docker
 IMAGE ?= kubecfg
 GO ?= go
 GO_FLAGS ?= -mod=vendor
