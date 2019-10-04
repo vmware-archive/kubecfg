@@ -15,6 +15,8 @@
 
 VERSION ?= dev-$(shell date +%FT%T%z)
 
+BUILDER ?= podman
+IMAGE ?= kubecfg
 GO ?= go
 GO_FLAGS ?= -mod=vendor
 GO_LDFLAGS ?=
@@ -38,6 +40,9 @@ all: kubecfg
 
 kubecfg:
 	CGO_ENABLED=0 $(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
+
+image:
+	$(BUILDER) build -t $(IMAGE) --build-arg=VERSION=$(VERSION) .
 
 generate:
 	$(GO) generate -x $(GO_FLAGS) $(GO_PACKAGES)
@@ -67,5 +72,6 @@ vendor:
 clean:
 	$(RM) ./kubecfg
 
-.PHONY: all test clean vet fmt vendor
+
+.PHONY: all test clean vet fmt vendor image
 .PHONY: kubecfg
