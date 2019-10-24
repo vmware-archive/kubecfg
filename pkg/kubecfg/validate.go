@@ -82,6 +82,9 @@ func (c ValidateCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer)
 			for _, err := range schema.Validate(obj) {
 				allErrs = append(allErrs, err)
 			}
+			if obj.GetName() == "" {
+				allErrs = append(allErrs, fmt.Errorf("An Object does not have a name set"))
+			}
 		}
 
 		for _, err := range allErrs {

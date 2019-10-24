@@ -67,6 +67,10 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 			return err
 		}
 
+		if obj.GetName() == "" {
+			return fmt.Errorf("Error fetching one of the %s: it does not have a name set", utils.ResourceNameFor(c.Mapper, obj))
+		}
+
 		liveObj, err := client.Get(obj.GetName(), metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			log.Debugf("%s doesn't exist on the server", desc)
