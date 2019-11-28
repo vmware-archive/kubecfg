@@ -22,7 +22,7 @@ import (
 	"runtime/debug"
 
 	"github.com/google/go-jsonnet/ast"
-	"github.com/google/go-jsonnet/parser"
+	"github.com/google/go-jsonnet/internal/program"
 )
 
 // Note: There are no garbage collection params because we're using the native
@@ -96,13 +96,48 @@ const (
 	evalKindStream           = iota
 )
 
+// Evaluate evaluates a Jsonnet program given by an Abstract Syntax Tree
+// and returns serialized JSON as string.
+// TODO(sbarzowski) perhaps is should return JSON in standard Go representation
+func (vm *VM) Evaluate(node ast.Node) (val string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("(CRASH) %v\n%s", r, debug.Stack())
+		}
+	}()
+	return evaluate(node, vm.ext, vm.tla, vm.nativeFuncs, vm.MaxStack, vm.importer, vm.StringOutput)
+}
+
+// EvaluateStream evaluates a Jsonnet program given by an Abstract Syntax Tree
+// and returns an array of JSON strings.
+func (vm *VM) EvaluateStream(node ast.Node) (output interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("(CRASH) %v\n%s", r, debug.Stack())
+		}
+	}()
+	return evaluateStream(node, vm.ext, vm.tla, vm.nativeFuncs, vm.MaxStack, vm.importer)
+}
+
+// EvaluateMulti evaluates a Jsonnet program given by an Abstract Syntax Tree
+// and returns key-value pairs.
+// The keys are strings and the values are JSON strigns (serialized JSON).
+func (vm *VM) EvaluateMulti(node ast.Node) (output interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("(CRASH) %v\n%s", r, debug.Stack())
+		}
+	}()
+	return evaluateMulti(node, vm.ext, vm.tla, vm.nativeFuncs, vm.MaxStack, vm.importer, vm.StringOutput)
+}
+
 func (vm *VM) evaluateSnippet(filename string, snippet string, kind evalKind) (output interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("(CRASH) %v\n%s", r, debug.Stack())
 		}
 	}()
-	node, err := snippetToAST(filename, snippet)
+	node, err := SnippetToAST(filename, snippet)
 	if err != nil {
 		return "", err
 	}
@@ -164,32 +199,12 @@ func (vm *VM) EvaluateSnippetMulti(filename string, snippet string) (files map[s
 	return
 }
 
-func snippetToAST(filename string, snippet string) (ast.Node, error) {
-	tokens, err := parser.Lex(filename, snippet)
-	if err != nil {
-		return nil, err
-	}
-	node, err := parser.Parse(tokens)
-	if err != nil {
-		return nil, err
-	}
-	err = desugarFile(&node)
-	if err != nil {
-		return nil, err
-	}
-	err = analyze(node)
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
 // SnippetToAST parses a snippet and returns the resulting AST.
 func SnippetToAST(filename string, snippet string) (ast.Node, error) {
-	return snippetToAST(filename, snippet)
+	return program.SnippetToAST(filename, snippet)
 }
 
 // Version returns the Jsonnet version number.
 func Version() string {
-	return "v0.12.0"
+	return "v0.14.0"
 }

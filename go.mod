@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/spec v0.17.0 // indirect
 	github.com/golang/protobuf v1.2.0
 	github.com/google/btree v1.0.0 // indirect
-	github.com/google/go-jsonnet v0.12.1
+	github.com/google/go-jsonnet v0.14.0
 	github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367 // indirect
 	github.com/googleapis/gnostic v0.1.1-0.20180218235700-15cf44e552f9
 	github.com/gophercloud/gophercloud v0.0.0-20180227043227-eedbafadaa1a // indirect
@@ -20,13 +20,13 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/mattn/go-isatty v0.0.2
+	github.com/mattn/go-isatty v0.0.7
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/sergi/go-diff v0.0.0-20170409071739-feef008d51ad
+	github.com/sergi/go-diff v1.0.0
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.2-0.20180319062004-c439c4fa0937
 	github.com/spf13/pflag v1.0.5
