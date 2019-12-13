@@ -252,6 +252,8 @@ github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
 # github.com/sergi/go-diff v1.0.0
 github.com/sergi/go-diff/diffmatchpatch
+# github.com/sethvargo/go-password v0.1.2
+github.com/sethvargo/go-password/password
 # github.com/sirupsen/logrus v1.0.6
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v0.0.2-0.20180319062004-c439c4fa0937
