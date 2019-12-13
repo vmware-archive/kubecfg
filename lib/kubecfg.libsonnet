@@ -56,4 +56,8 @@
   // to refer to submatches.  Regex is as implemented in golang regexp
   // package (python-ish).
   regexSubst:: std.native("regexSubst"),
+
+  // generatePassword(length, numDigits, numSymbols, noUpper, allowRepeat):
+  // Return a generated password with the features specified by the parameters.
+  generatePassword:: std.native("generatePassword"),
 }

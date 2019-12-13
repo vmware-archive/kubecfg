@@ -22,6 +22,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sethvargo/go-password/password"
+
 	goyaml "github.com/ghodss/yaml"
 
 	jsonnet "github.com/google/go-jsonnet"
@@ -40,6 +42,10 @@ func resolveImage(resolver Resolver, image string) (string, error) {
 	}
 
 	return n.String(), nil
+}
+
+func generatePassword(length int, numDigits int, numSymbols int, noUpper bool, allowRepeat bool)  (string, error) {
+	return password.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
 }
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
@@ -140,4 +146,13 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 			return r.ReplaceAllString(src, repl), nil
 		},
 	})
+
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "generatePassword",
+		Params: []jsonnetAst.Identifier{"length", "numDigits", "numSymbols", "noUpper", "allowRepeat"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return generatePassword(int(args[0].(float64)), int(args[1].(float64)), int(args[2].(float64)), args[3].(bool), args[4].(bool))
+		},
+	})
+
 }

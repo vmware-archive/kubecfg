@@ -27,6 +27,7 @@ require (
 	github.com/onsi/gomega v1.4.2
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/sergi/go-diff v1.0.0
+	github.com/sethvargo/go-password v0.1.2
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.2-0.20180319062004-c439c4fa0937
 	github.com/spf13/pflag v1.0.5
