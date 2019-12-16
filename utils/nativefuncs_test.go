@@ -107,7 +107,7 @@ func TestGeneratePassword(t *testing.T)  {
 	vm := jsonnet.MakeVM()
 	RegisterNativeFuncs(vm, NewIdentityResolver())
 
-	_, err := vm.EvaluateSnippet("test", `std.native("generatePassword")(16, 4, 5, true, true)`)
+	_, err := vm.EvaluateSnippet("test", `std.native("generatePassword")(16, 4, 5, true, true, "")`)
 	
 	if err != nil {
 		t.Errorf("Got error: %q", err.Error())

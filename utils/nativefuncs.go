@@ -44,8 +44,21 @@ func resolveImage(resolver Resolver, image string) (string, error) {
 	return n.String(), nil
 }
 
-func generatePassword(length int, numDigits int, numSymbols int, noUpper bool, allowRepeat bool)  (string, error) {
-	return password.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
+func generatePassword(length int, numDigits int, numSymbols int, noUpper bool, allowRepeat bool, customSymbols string) (string, error) {
+	// exclude some of the default symbols as they cause problems when using them
+	// as arguments on the command line (as part of JSON being passed)
+	input := &password.GeneratorInput {
+		LowerLetters: "",
+		UpperLetters: "",
+		Digits:       "",
+		Symbols:      customSymbols,
+	}
+	g, err := password.NewGenerator(input)
+
+	if err != nil {
+		return "", err
+	}
+	return g.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
 }
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
@@ -149,9 +162,9 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 
 	vm.NativeFunction(&jsonnet.NativeFunction{
 		Name:   "generatePassword",
-		Params: []jsonnetAst.Identifier{"length", "numDigits", "numSymbols", "noUpper", "allowRepeat"},
+		Params: []jsonnetAst.Identifier{"length", "numDigits", "numSymbols", "noUpper", "allowRepeat", "customSymbols"},
 		Func: func(args []interface{}) (res interface{}, err error) {
-			return generatePassword(int(args[0].(float64)), int(args[1].(float64)), int(args[2].(float64)), args[3].(bool), args[4].(bool))
+			return generatePassword(int(args[0].(float64)), int(args[1].(float64)), int(args[2].(float64)), args[3].(bool), args[4].(bool), args[5].(string) )
 		},
 	})
 

@@ -57,7 +57,7 @@
   // package (python-ish).
   regexSubst:: std.native("regexSubst"),
 
-  // generatePassword(length, numDigits, numSymbols, noUpper, allowRepeat):
+  // generatePassword(length, numDigits, numSymbols, noUpper, allowRepeat,customSymbols):
   // Return a generated password with the features specified by the parameters.
   generatePassword:: std.native("generatePassword"),
 }
