@@ -112,5 +112,17 @@ func TestGeneratePassword(t *testing.T)  {
 	if err != nil {
 		t.Errorf("Got error: %q", err.Error())
 	} 
+}
+
+func TestExecProgram(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	_, err := vm.EvaluateSnippet("test", `std.native("execProgram")("ls", "-a -l", true)`)
+	
+	if err != nil {
+		t.Errorf("Got error: %q", err.Error())
+	} 
+}
 	
 }

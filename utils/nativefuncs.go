@@ -18,10 +18,13 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"regexp"
+	"os/exec"
 	"strings"
 
+	"github.com/mattn/go-shellwords"
 	"github.com/sethvargo/go-password/password"
 
 	goyaml "github.com/ghodss/yaml"
@@ -61,6 +64,25 @@ func generatePassword(length int, numDigits int, numSymbols int, noUpper bool, a
 	return g.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
 }
 
+func execProgram(name string, argumentsString string, failOnError bool) (string, error) {
+	arg, err := shellwords.Parse(argumentsString)
+	if err != nil {
+		if failOnError {
+			return "", err
+		}
+		return "", nil
+	}
+
+	out, err := exec.Command(name, arg...).CombinedOutput()
+	if err != nil {
+		if failOnError {
+			return "", errors.New(string(out))
+		}
+		return "", nil
+	}
+
+	return string(out), nil
+}
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
 func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 	// TODO(mkm): go-jsonnet 0.12.x now contains native std.parseJson; deprecate and remove this one.
@@ -168,4 +190,12 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 		},
 	})
 
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "execProgram",
+		Params: []jsonnetAst.Identifier{"name", "arguments", "failOnError"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return execProgram(args[0].(string), args[1].(string), args[2].(bool))
+		},
+	})
+	
 }
