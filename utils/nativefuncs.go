@@ -17,6 +17,7 @@ package utils
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -87,6 +88,10 @@ func execProgram(name string, argumentsString string, failOnError bool) (string,
 
 func ntHashFromPassword(password string) (string)  {
 	return string(ntlm.FromASCIIStringToHex(password))
+}
+
+func encodeBase64Url(text string) (string) {
+	return base64.URLEncoding.EncodeToString([]byte(text))
 }
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
@@ -209,6 +214,14 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 		Params: []jsonnetAst.Identifier{"password"},
 		Func: func(args []interface{}) (res interface{}, err error) {
 			return ntHashFromPassword(args[0].(string)), nil
+		},
+	})
+
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "encodeBase64Url",
+		Params: []jsonnetAst.Identifier{"text"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return encodeBase64Url(args[0].(string)), nil
 		},
 	})
 

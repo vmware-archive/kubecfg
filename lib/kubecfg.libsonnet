@@ -68,4 +68,7 @@
 
   // ntHashFromPassword(password): Return the NT(LM) hash for a password.
   ntHashFromPassword:: std.native("ntHashFromPassword"),
+
+  // encodeBase64Url(text): Return base64-url-encoded string for text.
+  encodeBase64Url:: std.native("encodeBase64Url"),
 }

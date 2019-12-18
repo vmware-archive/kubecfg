@@ -133,3 +133,14 @@ func TestNtHashFromPassword(t *testing.T)  {
 
 	check(t, err , r, "\"209c6174da490caeb422f3fa5a7ae634\"\n")
 }
+
+func TestEncodeBase64Url(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	r, err := vm.EvaluateSnippet("test", `std.native("encodeBase64Url")("This is a test")`)
+	
+	// echo -n "This is a test" | base64 
+	// result: VGhpcyBpcyBhIHRlc3Q=
+	check(t, err , r, "\"VGhpcyBpcyBhIHRlc3Q=\"\n")
+}
