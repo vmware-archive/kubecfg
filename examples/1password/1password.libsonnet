@@ -43,6 +43,15 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
             if item == null then "N/A" else item.details.password)
     ),
 
+    getItemFrom1Password(onePasswordItemName, vault):: (
+        local item = $._get1PasswordItemByName(onePasswordItemName, vault);
+        std.trace
+            (if item == null 
+                then "Could not retrieve item from 1Password (probably not signed-in)" 
+                else "Item retrieved from 1Password for item '" + onePasswordItemName + "'", 
+            item)
+    ),
+
     ntHashFromPassword(password):: (
         kubecfg.ntHashFromPassword(password)
     ),
