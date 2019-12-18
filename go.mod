@@ -3,6 +3,7 @@ module github.com/bitnami/kubecfg
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.4.6 // indirect
 	github.com/Azure/go-autorest v11.5.0+incompatible // indirect
+	github.com/DaKnOb/ntlm v0.0.0-20180331151128-c6369eea43f9
 	github.com/dgrijalva/jwt-go v3.1.0+incompatible // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20180223160309-38087fe4dafb
 	github.com/evanphx/json-patch v4.1.0+incompatible

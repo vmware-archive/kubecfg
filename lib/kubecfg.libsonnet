@@ -66,4 +66,6 @@
   // be in PATH.
   execProgram:: std.native("execProgram"),
 
+  // ntHashFromPassword(password): Return the NT(LM) hash for a password.
+  ntHashFromPassword:: std.native("ntHashFromPassword"),
 }

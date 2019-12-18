@@ -124,5 +124,12 @@ func TestExecProgram(t *testing.T)  {
 		t.Errorf("Got error: %q", err.Error())
 	} 
 }
-	
+
+func TestNtHashFromPassword(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	r, err := vm.EvaluateSnippet("test", `std.native("ntHashFromPassword")("admin")`)
+
+	check(t, err , r, "\"209c6174da490caeb422f3fa5a7ae634\"\n")
 }

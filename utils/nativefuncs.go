@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/DaKnOb/ntlm"
 	"github.com/mattn/go-shellwords"
 	"github.com/sethvargo/go-password/password"
 
@@ -83,6 +84,11 @@ func execProgram(name string, argumentsString string, failOnError bool) (string,
 
 	return string(out), nil
 }
+
+func ntHashFromPassword(password string) (string)  {
+	return string(ntlm.FromASCIIStringToHex(password))
+}
+
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
 func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 	// TODO(mkm): go-jsonnet 0.12.x now contains native std.parseJson; deprecate and remove this one.
@@ -198,4 +204,12 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 		},
 	})
 	
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "ntHashFromPassword",
+		Params: []jsonnetAst.Identifier{"password"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return ntHashFromPassword(args[0].(string)), nil
+		},
+	})
+
 }
