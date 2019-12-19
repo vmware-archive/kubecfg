@@ -19,12 +19,12 @@
 local kubecfg = import "kubecfg.libsonnet";
 local onePassword = import "1password.libsonnet";
 
-function(namespace="test") {
+function(namespace="test", useFallbackValues = false) {
     local clusterName = "eip3",
 
     // this is determining the item name (in 1Password) based on a name and namespace 
     // and the vault name based on a cluster name
-    secrets: onePassword.OnePasswordSecret("secrets", namespace, "cluster-" + clusterName) {
+    secrets: onePassword.OnePasswordSecret("secrets", namespace, "cluster-" + clusterName, useFallbackValues) {
         local secret = self,
 
         stringData+: {
@@ -37,6 +37,9 @@ function(namespace="test") {
           // passwords can be retrieved from a 1Password 'password' item - these will not be saved in 1Password since they already are
           "existing-password-stored-in-one-password": onePassword.getPasswordFrom1Password("secret", "cluster-" + clusterName),
           
+          // a fallback value can be supplied in case the vault should not be accessed at all
+          "existing-password-stored-in-one-password-with-fallback": onePassword.getPasswordFrom1Password("secret", "cluster-" + clusterName, "this is my fallback", useFallbackValues),
+
           // a password hash can be calculated from a password
           // the password to use can be a generated one (see below) - these will not be saved in 1Password (they are recalculated every time)
           "nthash-1": kubecfg.ntHashFromPassword(secret.stringData["password-1-generated-with-spec"]),
@@ -51,6 +54,7 @@ function(namespace="test") {
             numSymbols: 6,
             noUpper: false,
             allowRepeat: true,
+            fallback: "abc",
           },
           "password-2-generated-with-spec": {
             length: 32,
@@ -58,6 +62,7 @@ function(namespace="test") {
             numSymbols: 6,
             noUpper: false,
             allowRepeat: false,
+            fallback: "def",
           },
           // defaults will be applied when no explicit values are supplied
           "password-3-generated-with-spec": {

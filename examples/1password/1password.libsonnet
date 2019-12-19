@@ -27,6 +27,7 @@ local numSymbolsDefault = 4;
 local noUpperDefault = false;
 local allowRepeatDefault = true;
 local customSymbolsDefault = ""; // "" causes library to use the default symbol set
+local fallbackDefault = "default";
 
 {
     generatePassword(field, length = lengthDefault, numDigits = numDigitsDefault, numSymbols = numSymbolsDefault,
@@ -34,22 +35,30 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
         kubecfg.generatePassword(length, numDigits, numSymbols, noUpper, allowRepeat, customSymbols)
     ),
 
-    getPasswordFrom1Password(onePasswordItemName, vault):: (
+    getPasswordFrom1Password(onePasswordItemName, vault, fallbackValue = fallbackDefault, useFallbackValue = false):: (
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
-            (if item == null 
-                then "Could not retrieve item from 1Password (probably not signed-in)" 
-                else "Item retrieved from 1Password for item '" + onePasswordItemName + "'", 
-            if item == null then "N/A" else item.details.password)
+            (
+                if useFallbackValue then "Returning fallback for " + onePasswordItemName
+                else
+                    if item == null then "Could not retrieve item from 1Password (probably not signed-in)" 
+                    else "Item retrieved from 1Password for item '" + onePasswordItemName + "'", 
+                
+                if useFallbackValue then fallbackValue
+                else 
+                    if item == null then "N/A" 
+                    else item.details.password
+            )
     ),
 
     getItemFrom1Password(onePasswordItemName, vault):: (
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
-            (if item == null 
-                then "Could not retrieve item from 1Password (probably not signed-in)" 
-                else "Item retrieved from 1Password for item '" + onePasswordItemName + "'", 
-            item)
+            (
+                if item == null then "Could not retrieve item from 1Password (probably not signed-in)" 
+                else "Item retrieved from 1Password for item '" + onePasswordItemName + "'",
+                item
+            )
     ),
 
     ntHashFromPassword(password):: (
@@ -58,7 +67,8 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
 
     _get1PasswordItemByName(name, vault):: (
         local itemString = kubecfg.execProgram("op", "get item " + name + " --vault=" + vault, false);
-        if itemString == "" then null else std.parseJson(itemString)
+        if itemString == "" then null 
+        else std.parseJson(itemString)
     ),
 
     _generateSecrets(passwordsSpec):: { 
@@ -74,6 +84,18 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
                                         "!@#$%^&*()_+`-={}|[]?,.",
                                         //"._+:@%/-", // reduced set, should be safe for passing in shell without escaping
                     )
+                else 
+                    // just use the value verbatim
+                    v
+                )
+                for key in std.objectFields(passwordsSpec)
+    },
+
+    _generateSecretsFromFallbackValues(passwordsSpec):: {
+        [key]:  (
+                local v = passwordsSpec[key];
+                if std.type(v) == "object" then
+                    if "fallback" in v then v.fallback else fallbackDefault
                 else 
                     // just use the value verbatim
                     v
@@ -105,7 +127,11 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
 
         // trigger side effect and return stringData
         local creationResult = $._createItemIn1Password(name, vault, item);
-        std.trace(if creationResult == "" then "No item created in 1Password (probably not signed-in)" else "Created item in 1Password: " + creationResult, stringData)
+        std.trace
+            (
+                if creationResult == "" then "No item created in 1Password (probably not signed-in)" 
+                else "Created item in 1Password: " + creationResult, stringData
+            )
     ),
 
     _createItemIn1Password(name, vault, item):: (
@@ -131,7 +157,7 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
         std.parseJson(std.manifestJsonEx(object, "  "))
     ),
 
-    OnePasswordSecret(name, namespace, vault): $._Object("v1", "Secret", name, namespace) {
+    OnePasswordSecret(name, namespace, vault, useFallbackValues = false): $._Object("v1", "Secret", name, namespace) {
         local onePasswordItemName = namespace + "-" + name,
         local onePasswordItem = $._get1PasswordItemByName(onePasswordItemName, vault),
 
@@ -140,14 +166,21 @@ local customSymbolsDefault = ""; // "" causes library to use the default symbol 
         generatedPasswords_:: {},
         
         type: "Opaque",
-        stringData: if onePasswordItem == null 
-                    then $._saveTo1Password(onePasswordItemName, vault, $._serializeObject($._generateSecrets(self.generatedPasswords_)))
-                    else $._convert1PasswordItemToSecrets(onePasswordItem),
+        stringData: if useFallbackValues then 
+                        std.trace
+                            (
+                                "Using fallback values as requested",
+                                $._generateSecretsFromFallbackValues(self.generatedPasswords_)
+                            )
+                        else
+                            if onePasswordItem == null 
+                                then $._saveTo1Password(onePasswordItemName, vault, $._serializeObject($._generateSecrets(self.generatedPasswords_)))
+                                else $._convert1PasswordItemToSecrets(onePasswordItem),
     },
 
 
     // The following is taken from https://github.com/bitnami-labs/kube-libsonnet/blob/master/kube.libsonnet
-    // When kube.libsonnet is used 1PasswordSecret may reference it directly.
+    // When kube.libsonnet is used OnePasswordSecret may reference it directly.
     safeName(s):: (
         local length = std.length(s);
         local name = (if length > 63 then std.substr(s, 0, 62) else s);
