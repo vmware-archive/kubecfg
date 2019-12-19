@@ -39,10 +39,10 @@ local fallbackDefault = "default";
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
             (
-                if useFallbackValue then "Returning fallback for " + onePasswordItemName
+                if useFallbackValue then "Returning fallback for item named %s" % onePasswordItemName
                 else
-                    if item == null then "Could not retrieve item from 1Password (probably not signed-in)" 
-                    else "Item retrieved from 1Password for item '" + onePasswordItemName + "'", 
+                    if item == null then "Could not retrieve item %s from 1Password (probably not signed-in)" % onePasswordItemName
+                    else "Item retrieved from 1Password for item named %s" % onePasswordItemName, 
                 
                 if useFallbackValue then fallbackValue
                 else 
@@ -55,8 +55,8 @@ local fallbackDefault = "default";
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
             (
-                if item == null then "Could not retrieve item from 1Password (probably not signed-in)" 
-                else "Item retrieved from 1Password for item '" + onePasswordItemName + "'",
+                if item == null then "Could not retrieve item %s from 1Password (probably not signed-in)" % onePasswordItemName
+                else "Item retrieved from 1Password for item named %s" % onePasswordItemName,
                 item
             )
     ),
@@ -66,7 +66,7 @@ local fallbackDefault = "default";
     ),
 
     _get1PasswordItemByName(name, vault):: (
-        local itemString = kubecfg.execProgram("op", "get item " + name + " --vault=" + vault, false);
+        local itemString = kubecfg.execProgram("op", "get item %s --vault=%s" % [name, vault], false);
         if itemString == "" then null 
         else std.parseJson(itemString)
     ),
@@ -130,13 +130,14 @@ local fallbackDefault = "default";
         std.trace
             (
                 if creationResult == "" then "No item created in 1Password (probably not signed-in)" 
-                else "Created item in 1Password: " + creationResult, stringData
+                else "Created item named %s in vault %s: %s" % [name, vault, creationResult],
+                stringData
             )
     ),
 
     _createItemIn1Password(name, vault, item):: (
         local encodedItem = kubecfg.encodeBase64Url(std.toString(item));
-        kubecfg.execProgram("op", "create item 'secure note' " + encodedItem + " --title=" + name + " --tags=iks,k8s,ibmcloud --vault=" + vault, false)
+        kubecfg.execProgram("op", "create item 'secure note' %s --title=%s --tags=kubecfg --vault=%s" % [encodedItem,name, vault], false)
     ),
 
     _getKubecfgFieldsFrom1PasswordItem(onePasswordItem):: {
