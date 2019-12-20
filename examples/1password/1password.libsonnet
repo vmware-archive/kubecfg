@@ -39,7 +39,7 @@ local fallbackDefault = "default";
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
             (
-                if useFallbackValue then "Returning fallback for item named %s" % onePasswordItemName
+                if useFallbackValue then "Returning fallback password for item named %s" % onePasswordItemName
                 else
                     if item == null then "Could not retrieve item %s from 1Password (probably not signed-in)" % onePasswordItemName
                     else "Item retrieved from 1Password for item named %s" % onePasswordItemName, 
@@ -51,13 +51,19 @@ local fallbackDefault = "default";
             )
     ),
 
-    getItemFrom1Password(onePasswordItemName, vault):: (
+    getItemFrom1Password(onePasswordItemName, vault, fallbackValue = fallbackDefault, useFallbackValue = false):: (
         local item = $._get1PasswordItemByName(onePasswordItemName, vault);
         std.trace
             (
-                if item == null then "Could not retrieve item %s from 1Password (probably not signed-in)" % onePasswordItemName
-                else "Item retrieved from 1Password for item named %s" % onePasswordItemName,
-                item
+                if useFallbackValue then "Returning fallback object for item named %s" % onePasswordItemName
+                else
+                    if item == null then "Could not retrieve item %s from 1Password (probably not signed-in)" % onePasswordItemName
+                    else "Item retrieved from 1Password for item named %s" % onePasswordItemName, 
+                
+                if useFallbackValue then fallbackValue
+                else 
+                    if item == null then {} 
+                    else item
             )
     ),
 

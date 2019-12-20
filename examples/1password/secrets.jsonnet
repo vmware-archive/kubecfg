@@ -35,10 +35,29 @@ function(namespace="test", useFallbackValues = false) {
           "generated-with-kubecfg-libsonnet": kubecfg.generatePassword(8, 2, 2, false, true, ""),
           
           // passwords can be retrieved from a 1Password 'password' item - these will not be saved in 1Password since they already are
-          "existing-password-stored-in-one-password": onePassword.getPasswordFrom1Password("secret", "cluster-" + clusterName),
+          "existing-password-stored-in-one-password": onePassword.getPasswordFrom1Password("secret-password", "cluster-" + clusterName),
           
           // a fallback value can be supplied in case the vault should not be accessed at all
-          "existing-password-stored-in-one-password-with-fallback": onePassword.getPasswordFrom1Password("secret", "cluster-" + clusterName, "this is my fallback", useFallbackValues),
+          "existing-password-stored-in-one-password-with-fallback": onePassword.getPasswordFrom1Password("secret-password", "cluster-" + clusterName, "fallback-value-for-secret-password", useFallbackValues),
+
+          // items can be retrieved verbatim from a 1Password item - these will not be saved in 1Password since they already are
+          [if !useFallbackValues then "existing-item-stored-in-one-password"]: onePassword.getItemFrom1Password("secret-item", "cluster-" + clusterName).details.fields[1].value,
+          
+          // a fallback value (an object) can be supplied in case the vault should not be accessed at all
+          "existing-item-stored-in-one-password-with-fallback": onePassword.getItemFrom1Password("secret-item", "cluster-" + clusterName, 
+            {
+              details: {
+                fields: [
+                  {
+                    value: "fallback-user-value",
+                  },
+                  {
+                    value: "fallback-password-value",
+                  },
+                ],
+              },
+            },
+            useFallbackValues).details.fields[1].value,
 
           // a password hash can be calculated from a password
           // the password to use can be a generated one (see below) - these will not be saved in 1Password (they are recalculated every time)
