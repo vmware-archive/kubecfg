@@ -46,7 +46,7 @@ local fallbackDefault = "default";
                 
                 if useFallbackValue then fallbackValue
                 else 
-                    if item == null then "N/A" 
+                    if item == null then error 'Failed to read from 1Password.' 
                     else item.details.password
             )
     ),
