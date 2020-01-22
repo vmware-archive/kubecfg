@@ -77,7 +77,8 @@ func TestShow(t *testing.T) {
   "notAnotherVal": "aVal2",
   "filevar": "foo\n",
   "array": ["one", 2, [3]],
-  "object": {"foo": "bar"}
+  "object": {"foo": "bar"},
+  "extcode": {"foo": 1, "bar": "test"}
 }
 `
 
@@ -97,6 +98,7 @@ func TestShow(t *testing.T) {
 			"-V", "aVar=aVal",
 			"-V", "anVar",
 			"--ext-str-file", "filevar=" + filepath.FromSlash("../testdata/extvar.file"),
+			"--ext-code", `extcode={foo: 1, bar: "test"}`,
 		})
 		defer resetFlagsOf(RootCmd)
 
