@@ -70,17 +70,17 @@ func init() {
 	RootCmd.PersistentFlags().StringArrayP(flagJpath, "J", nil, "Additional Jsonnet library search path, appended to the ones in the KUBECFG_JPATH env var. May be repeated.")
 	RootCmd.MarkPersistentFlagFilename(flagJpath)
 	RootCmd.PersistentFlags().StringArrayP(flagJUrl, "U", nil, "Additional Jsonnet library search path given as a URL. May be repeated.")
-	RootCmd.PersistentFlags().StringSliceP(flagExtVar, "V", nil, "Values of external variables with string values")
-	RootCmd.PersistentFlags().StringSlice(flagExtVarFile, nil, "Read external variables with string values from files")
+	RootCmd.PersistentFlags().StringArrayP(flagExtVar, "V", nil, "Values of external variables with string values")
+	RootCmd.PersistentFlags().StringArray(flagExtVarFile, nil, "Read external variables with string values from files")
 	RootCmd.MarkPersistentFlagFilename(flagExtVarFile)
-	RootCmd.PersistentFlags().StringSlice(flagExtCode, nil, "Values of external variables with values supplied as Jsonnet code")
-	RootCmd.PersistentFlags().StringSlice(flagExtCodeFile, nil, "Read external variables with values supplied as Jsonnet code from files")
+	RootCmd.PersistentFlags().StringArray(flagExtCode, nil, "Values of external variables with values supplied as Jsonnet code")
+	RootCmd.PersistentFlags().StringArray(flagExtCodeFile, nil, "Read external variables with values supplied as Jsonnet code from files")
 	RootCmd.MarkPersistentFlagFilename(flagExtCodeFile)
-	RootCmd.PersistentFlags().StringSliceP(flagTLAVar, "A", nil, "Values of top level arguments with string values")
-	RootCmd.PersistentFlags().StringSlice(flagTLAVarFile, nil, "Read top level arguments with string values from files")
+	RootCmd.PersistentFlags().StringArrayP(flagTLAVar, "A", nil, "Values of top level arguments with string values")
+	RootCmd.PersistentFlags().StringArray(flagTLAVarFile, nil, "Read top level arguments with string values from files")
 	RootCmd.MarkPersistentFlagFilename(flagTLAVarFile)
-	RootCmd.PersistentFlags().StringSlice(flagTLACode, nil, "Values of top level arguments with values supplied as Jsonnet code")
-	RootCmd.PersistentFlags().StringSlice(flagTLACodeFile, nil, "Read top level arguments with values supplied as Jsonnet code from files")
+	RootCmd.PersistentFlags().StringArray(flagTLACode, nil, "Values of top level arguments with values supplied as Jsonnet code")
+	RootCmd.PersistentFlags().StringArray(flagTLACodeFile, nil, "Read top level arguments with values supplied as Jsonnet code from files")
 	RootCmd.MarkPersistentFlagFilename(flagTLACodeFile)
 	RootCmd.PersistentFlags().String(flagResolver, "noop", "Change implementation of resolveImage native function. One of: noop, registry")
 	RootCmd.PersistentFlags().String(flagResolvFail, "warn", "Action when resolveImage fails. One of ignore,warn,error")
@@ -271,7 +271,7 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		{flagTLACode, vm.TLACode, true, false},
 		{flagTLACodeFile, vm.TLACode, true, true},
 	} {
-		entries, err := flags.GetStringSlice(spec.flagName)
+		entries, err := flags.GetStringArray(spec.flagName)
 		if err != nil {
 			return nil, err
 		}
