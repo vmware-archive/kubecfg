@@ -79,6 +79,8 @@ std.assertEqual(kubecfg.escapeStringRegex("f[o"), "f\\[o") &&
 std.assertEqual(kubecfg.regexSubst("e", "tree", "oll"),
                 "trolloll") &&
 
+std.assertEqual(std.clamp(42, 0, 10), 10) &&
+
 true;
 
 // Kubecfg wants to see something that looks like a k8s object

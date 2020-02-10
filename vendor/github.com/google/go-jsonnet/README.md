@@ -22,13 +22,13 @@ go get github.com/google/go-jsonnet/cmd/jsonnet
 ## Build instructions (go 1.11+)
 
 ```bash
-git clone github.com/google/go-jsonnet
+git clone git@github.com:google/go-jsonnet.git
 cd go-jsonnet
 go build ./cmd/jsonnet
 ```
 To build with [Bazel](https://bazel.build/) instead:
 ```bash
-git clone github.com/google/go-jsonnet
+git clone git@github.com:google/go-jsonnet.git
 cd go-jsonnet
 git submodule init
 git submodule update
@@ -49,19 +49,37 @@ For additional target platform names, see the per-Go release definitions [here](
 
 Additionally if any files were moved around, see the section [Keeping the Bazel files up to date](#keeping-the-bazel-files-up-to-date).
 
-## Build instructions (go 1.8 - 1.10)
-
-```bash
-go get -u github.com/google/go-jsonnet
-cd $GOPATH/src/github.com/google/go-jsonnet
-go get -u .
-go build ./cmd/jsonnet
-```
-
 ## Running tests
 
 ```bash
 ./tests.sh  # Also runs `go test ./...`
+```
+
+## Running Benchmarks
+
+Setup
+
+```bash
+go get golang.org/x/tools/cmd/benchcmp
+```
+
+1. Make sure you build a jsonnet binary _prior_ to making changes.
+
+```bash
+go build ./cmd/jsonnet -o jsonnet-old
+```
+
+2. Make changes (iterate as needed), and rebuild new binary
+
+```bash
+go build ./cmd/jsonnet
+```
+
+3. Run benchmark:
+
+```bash
+# e.g. ./benchmark.sh Builtin
+./benchmark.sh <TestNameFilter>
 ```
 
 ## Implementation Notes
