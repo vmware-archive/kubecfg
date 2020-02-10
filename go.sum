@@ -87,6 +87,8 @@ github.com/google/go-jsonnet v0.12.1 h1:v0iUm/b4SBz7lR/diMoz9tLAz8lqtnNRKIwMrmU2
 github.com/google/go-jsonnet v0.12.1/go.mod h1:gVu3UVSfOt5fRFq+dh9duBqXa5905QY8S1QvMNcEIVs=
 github.com/google/go-jsonnet v0.14.0 h1:as/sAfmjOHqY/OMBR4mv9I8ZY0/jNuqN3u44AicwxPs=
 github.com/google/go-jsonnet v0.14.0/go.mod h1:zPGC9lj/TbjkBtUACIvYR/ILHrFqKRhxeEA+bLyeMnY=
+github.com/google/go-jsonnet v0.15.0 h1:lEUXTDnVsHu+CLLzMeWAdWV4JpCgkJeDqdVNS8RtyuY=
+github.com/google/go-jsonnet v0.15.0/go.mod h1:ex9QcU8vzXQUDeNe4gaN1uhGQbTYpOeZ6AbWdy6JbX4=
 github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367 h1:ScAXWS+TR6MZKex+7Z8rneuSJH+FSDqd6ocQyl+ZHo4=
 github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367/go.mod h1:HP5RmnzzSNb993RKQDq4+1A4ia9nllfqcQFTQJedwGI=
 github.com/googleapis/gnostic v0.1.1-0.20180218235700-15cf44e552f9 h1:E0CGAOCKvRdbJbtNWFChTnX9sFketyo6OuM02qzCVr0=

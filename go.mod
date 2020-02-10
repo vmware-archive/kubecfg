@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/spec v0.17.0 // indirect
 	github.com/golang/protobuf v1.2.0
 	github.com/google/btree v1.0.0 // indirect
-	github.com/google/go-jsonnet v0.14.0
+	github.com/google/go-jsonnet v0.15.0
 	github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367 // indirect
 	github.com/googleapis/gnostic v0.1.1-0.20180218235700-15cf44e552f9
 	github.com/gophercloud/gophercloud v0.0.0-20180227043227-eedbafadaa1a // indirect
