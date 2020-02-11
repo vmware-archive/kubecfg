@@ -17,7 +17,7 @@ package utils
 
 import (
 	"testing"
-
+	
 	jsonnet "github.com/google/go-jsonnet"
 )
 
@@ -101,4 +101,46 @@ func TestRegexSubst(t *testing.T) {
 
 	x, err = vm.EvaluateSnippet("test", `std.native("regexSubst")("a(x*)b", "-ab-axxb-", "${1}W")`)
 	check(t, err, x, "\"-W-xxW-\"\n")
+}
+
+func TestGeneratePassword(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	_, err := vm.EvaluateSnippet("test", `std.native("generatePassword")(16, 4, 5, true, true, "")`)
+	
+	if err != nil {
+		t.Errorf("Got error: %q", err.Error())
+	} 
+}
+
+func TestExecProgram(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	_, err := vm.EvaluateSnippet("test", `std.native("execProgram")("ls", "-a -l", true)`)
+	
+	if err != nil {
+		t.Errorf("Got error: %q", err.Error())
+	} 
+}
+
+func TestNtHashFromPassword(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	r, err := vm.EvaluateSnippet("test", `std.native("ntHashFromPassword")("admin")`)
+
+	check(t, err , r, "\"209c6174da490caeb422f3fa5a7ae634\"\n")
+}
+
+func TestEncodeBase64Url(t *testing.T)  {
+	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm, NewIdentityResolver())
+
+	r, err := vm.EvaluateSnippet("test", `std.native("encodeBase64Url")("This is a test")`)
+	
+	// echo -n "This is a test" | base64 
+	// result: VGhpcyBpcyBhIHRlc3Q=
+	check(t, err , r, "\"VGhpcyBpcyBhIHRlc3Q=\"\n")
 }

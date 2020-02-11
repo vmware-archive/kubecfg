@@ -12,6 +12,8 @@ github.com/Azure/go-autorest/autorest/azure
 github.com/Azure/go-autorest/autorest/date
 github.com/Azure/go-autorest/logger
 github.com/Azure/go-autorest/tracing
+# github.com/DaKnOb/ntlm v0.0.0-20180331151128-c6369eea43f9
+github.com/DaKnOb/ntlm
 # github.com/Microsoft/go-winio v0.4.11
 github.com/Microsoft/go-winio
 # github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5
@@ -182,6 +184,8 @@ github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
 # github.com/mattn/go-isatty v0.0.7
 github.com/mattn/go-isatty
+# github.com/mattn/go-shellwords v1.0.6
+github.com/mattn/go-shellwords
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -252,6 +256,8 @@ github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
 # github.com/sergi/go-diff v1.0.0
 github.com/sergi/go-diff/diffmatchpatch
+# github.com/sethvargo/go-password v0.1.2
+github.com/sethvargo/go-password/password
 # github.com/sirupsen/logrus v1.0.6
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v0.0.2-0.20180319062004-c439c4fa0937
@@ -279,6 +285,7 @@ go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
+golang.org/x/crypto/md4
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20181217023233-e147a9138326
 golang.org/x/net/context

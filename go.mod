@@ -3,6 +3,7 @@ module github.com/bitnami/kubecfg
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.4.6 // indirect
 	github.com/Azure/go-autorest v11.5.0+incompatible // indirect
+	github.com/DaKnOb/ntlm v0.0.0-20180331151128-c6369eea43f9
 	github.com/dgrijalva/jwt-go v3.1.0+incompatible // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20180223160309-38087fe4dafb
 	github.com/evanphx/json-patch v4.1.0+incompatible
@@ -21,12 +22,14 @@ require (
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.7
+	github.com/mattn/go-shellwords v1.0.6
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/sergi/go-diff v1.0.0
+	github.com/sethvargo/go-password v0.1.2
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.2-0.20180319062004-c439c4fa0937
 	github.com/spf13/pflag v1.0.5
