@@ -5,7 +5,7 @@ go:
   # first value (ditto for `os` below).
   # NB: release condition below also references (one) of the values in
   # this list.  Update there too!
-  - 1.12.x
+  - 1.14.x
 
 os:
   - linux
@@ -37,7 +37,7 @@ addons:
       - ca-certificates
 
 install:
-  - (cd $(mktemp -d); go mod init dummy; go get github.com/jteeuwen/go-bindata/go-bindata@6025e8de665b31fa74ab1a66f2cddd8c0abf887e)
+  - (cd /; GO111MODULE=on go get github.com/jteeuwen/go-bindata/go-bindata@6025e8de665b31fa74ab1a66f2cddd8c0abf887e)
   - |
     if [ "$DO_INTEGRATION_TEST" = 1 ]; then
       if ! which minikube; then
@@ -56,7 +56,7 @@ install:
         --kubernetes-version $INT_KVERS
       export GO111MODULE=on
       GINKGO_VERSION=$(go list -f '{{.Version}}' -m github.com/onsi/ginkgo)
-      (cd $(mktemp -d); go mod init dummy; go get github.com/onsi/ginkgo/ginkgo@$GINKGO_VERSION)
+      (cd /; go get github.com/onsi/ginkgo/ginkgo@$GINKGO_VERSION)
     fi
 
 script:
