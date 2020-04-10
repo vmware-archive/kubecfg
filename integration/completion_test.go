@@ -51,7 +51,7 @@ var _ = Describe("completion", func() {
 			env = []string{}
 		})
 		It("should produce zsh completion", func() {
-			Expect(output).To(HavePrefix("#compdef kubecfg"))
+			Expect(output).To(HavePrefix("#compdef _kubecfg kubecfg"))
 		})
 	})
 
