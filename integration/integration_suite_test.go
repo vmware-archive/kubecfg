@@ -12,12 +12,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -97,10 +95,7 @@ func runKubecfgWithOutput(flags []string, input []runtime.Object, output io.Writ
 	if err != nil {
 		return err
 	}
-	enc := unstructured.JSONFallbackEncoder{serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}.LegacyCodec(
-		v1.SchemeGroupVersion,
-		appsv1.SchemeGroupVersion,
-	)}
+	enc := unstructured.NewJSONFallbackEncoder(scheme.Codecs.LegacyCodec(scheme.Scheme.PrioritizedVersionsAllGroups()...))
 
 	if err := encodeTo(f, enc, input); err != nil {
 		return err
