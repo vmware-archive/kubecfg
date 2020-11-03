@@ -67,6 +67,6 @@ var diffCmd = &cobra.Command{
 			return err
 		}
 
-		return c.Run(objs, cmd.OutOrStdout())
+		return c.Run(cmd.Context(), objs, cmd.OutOrStdout())
 	},
 }

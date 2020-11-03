@@ -1,6 +1,7 @@
 package kubecfg
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -163,8 +164,8 @@ func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unst
 	return result.(*unstructured.Unstructured), nil
 }
 
-func createOrUpdate(rc dynamic.ResourceInterface, obj *unstructured.Unstructured, create bool, dryRun bool, schema proto.Schema, desc, dryRunText string) (*unstructured.Unstructured, error) {
-	existing, err := rc.Get(obj.GetName(), metav1.GetOptions{})
+func createOrUpdate(ctx context.Context, rc dynamic.ResourceInterface, obj *unstructured.Unstructured, create bool, dryRun bool, schema proto.Schema, desc, dryRunText string) (*unstructured.Unstructured, error) {
+	existing, err := rc.Get(ctx, obj.GetName(), metav1.GetOptions{})
 	if create && errors.IsNotFound(err) {
 		log.Info("Creating ", desc, dryRunText)
 
@@ -177,7 +178,7 @@ func createOrUpdate(rc dynamic.ResourceInterface, obj *unstructured.Unstructured
 		if dryRun {
 			return obj, nil
 		}
-		newobj, err := rc.Create(obj, metav1.CreateOptions{})
+		newobj, err := rc.Create(ctx, obj, metav1.CreateOptions{})
 		log.Debugf("Create(%s) returned (%v, %v)", obj.GetName(), newobj, err)
 		return newobj, err
 	}
@@ -208,7 +209,7 @@ func createOrUpdate(rc dynamic.ResourceInterface, obj *unstructured.Unstructured
 	if dryRun {
 		return mergedObj, nil
 	}
-	newobj, err := rc.Update(mergedObj, metav1.UpdateOptions{})
+	newobj, err := rc.Update(ctx, mergedObj, metav1.UpdateOptions{})
 	log.Debugf("Update(%s) returned (%v, %v)", mergedObj.GetName(), newobj, err)
 	if err != nil {
 		log.Debug("Updated object: ", diff.ObjectDiff(existing, newobj))
@@ -241,7 +242,7 @@ func isSchemaEstablished(obj *unstructured.Unstructured) bool {
 	return false
 }
 
-func waitForSchemaChange(disco discovery.DiscoveryInterface, rc dynamic.ResourceInterface, obj *unstructured.Unstructured) {
+func waitForSchemaChange(ctx context.Context, disco discovery.DiscoveryInterface, rc dynamic.ResourceInterface, obj *unstructured.Unstructured) {
 	if isSchemaEstablished(obj) {
 		return
 	}
@@ -251,7 +252,7 @@ func waitForSchemaChange(disco discovery.DiscoveryInterface, rc dynamic.Resource
 		utils.MaybeMarkStale(disco)
 
 		var err error
-		obj, err = rc.Get(obj.GetName(), metav1.GetOptions{})
+		obj, err = rc.Get(ctx, obj.GetName(), metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// continue polling
@@ -268,7 +269,7 @@ func waitForSchemaChange(disco discovery.DiscoveryInterface, rc dynamic.Resource
 }
 
 // Run executes the update command
-func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
+func (c UpdateCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructured) error {
 	dryRunText := ""
 	if c.DryRun {
 		dryRunText = " (dry-run)"
@@ -318,7 +319,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 
 		var newobj *unstructured.Unstructured
 		err = retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-			newobj, err = createOrUpdate(rc, obj, c.Create, c.DryRun, schema, desc, dryRunText)
+			newobj, err = createOrUpdate(ctx, rc, obj, c.Create, c.DryRun, schema, desc, dryRunText)
 			return
 		})
 		if err != nil {
@@ -334,7 +335,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 
 		// Don't wait for CRDs to settle schema under DryRun
 		if !c.DryRun {
-			waitForSchemaChange(c.Discovery, rc, newobj)
+			waitForSchemaChange(ctx, c.Discovery, rc, newobj)
 		}
 	}
 
@@ -346,7 +347,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 		}
 
 		// [gctag-migration]: Add LabelGcTag==c.GcTag to ListOptions.LabelSelector in phase2
-		err = walkObjects(c.Client, c.Discovery, metav1.ListOptions{}, func(o runtime.Object) error {
+		err = walkObjects(ctx, c.Client, c.Discovery, metav1.ListOptions{}, func(o runtime.Object) error {
 			meta, err := meta.Accessor(o)
 			if err != nil {
 				return err
@@ -357,7 +358,7 @@ func (c UpdateCmd) Run(apiObjects []*unstructured.Unstructured) error {
 			if eligibleForGc(meta, c.GcTag) && !seenUids.Has(string(meta.GetUID())) {
 				log.Info("Garbage collecting ", desc, dryRunText)
 				if !c.DryRun {
-					err := gcDelete(c.Client, c.Mapper, &version, o)
+					err := gcDelete(ctx, c.Client, c.Mapper, &version, o)
 					if err != nil {
 						return err
 					}
@@ -382,7 +383,7 @@ func stringListContains(list []string, value string) bool {
 	return false
 }
 
-func gcDelete(client dynamic.Interface, mapper meta.RESTMapper, version *utils.ServerVersion, o runtime.Object) error {
+func gcDelete(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, version *utils.ServerVersion, o runtime.Object) error {
 	obj, err := meta.Accessor(o)
 	if err != nil {
 		return fmt.Errorf("Unexpected object type: %s", err)
@@ -409,7 +410,7 @@ func gcDelete(client dynamic.Interface, mapper meta.RESTMapper, version *utils.S
 		return err
 	}
 
-	err = c.Delete(obj.GetName(), &deleteOpts)
+	err = c.Delete(ctx, obj.GetName(), deleteOpts)
 	if err != nil && (errors.IsNotFound(err) || errors.IsConflict(err)) {
 		// We lost a race with something else changing the object
 		log.Debugf("Ignoring error while deleting %s: %s", desc, err)
@@ -422,7 +423,7 @@ func gcDelete(client dynamic.Interface, mapper meta.RESTMapper, version *utils.S
 	return nil
 }
 
-func walkObjects(client dynamic.Interface, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
+func walkObjects(ctx context.Context, client dynamic.Interface, disco discovery.DiscoveryInterface, listopts metav1.ListOptions, callback func(runtime.Object) error) error {
 	rsrclists, err := disco.ServerResources()
 	if err != nil {
 		return err
@@ -455,7 +456,7 @@ func walkObjects(client dynamic.Interface, disco discovery.DiscoveryInterface, l
 			}
 
 			log.Debugf("Listing %s", gvr)
-			obj, err := rc.List(listopts)
+			obj, err := rc.List(ctx, listopts)
 			if err != nil {
 				return err
 			}
