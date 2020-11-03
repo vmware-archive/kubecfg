@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/kube-openapi/pkg/util/proto"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/bitnami/kubecfg/utils"
 )

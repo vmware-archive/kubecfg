@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kube-openapi/pkg/util/proto/validation"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/util/openapi"
+	"k8s.io/kubectl/pkg/util/openapi"
 )
 
 // OpenAPISchema represents an OpenAPI schema for a given GroupVersionKind.
