@@ -35,6 +35,17 @@ func cloneForSpec(specPtr *ForSpec) {
 	}
 }
 
+// Updates fields of params to point to deep clones.
+func cloneParameters(params *Parameters) {
+	if params == nil {
+		return
+	}
+	params.Optional = append(make([]NamedParameter, 0), params.Optional...)
+	for i := range params.Optional {
+		clone(&params.Optional[i].DefaultArg)
+	}
+}
+
 // Updates fields of field to point to deep clones.
 func cloneField(field *ObjectField) {
 	if field.Method != nil {
@@ -147,12 +158,7 @@ func clone(astPtr *Node) {
 		r := new(Function)
 		*astPtr = r
 		*r = *node
-		if r.Parameters != nil {
-			r.Parameters = append(make([]Parameter, 0), r.Parameters...)
-			for i := range r.Parameters {
-				clone(&r.Parameters[i].DefaultArg)
-			}
-		}
+		cloneParameters(&r.Parameters)
 		clone(&r.Body)
 
 	case *Import:

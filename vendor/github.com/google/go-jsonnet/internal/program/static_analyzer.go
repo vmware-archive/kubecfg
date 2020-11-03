@@ -76,17 +76,21 @@ func analyzeVisit(a ast.Node, inObject bool, vars ast.IdentifierSet) error {
 		visitNext(a.Expr, inObject, vars, s)
 	case *ast.Function:
 		newVars := vars.Clone()
-		for _, param := range a.Parameters {
+		for _, param := range a.Parameters.Required {
 			newVars.Add(param.Name)
 		}
-		for _, param := range a.Parameters {
-			if param.DefaultArg != nil {
-				visitNext(param.DefaultArg, inObject, newVars, s)
-			}
+		for _, param := range a.Parameters.Optional {
+			newVars.Add(param.Name)
+		}
+		for _, param := range a.Parameters.Optional {
+			visitNext(param.DefaultArg, inObject, newVars, s)
 		}
 		visitNext(a.Body, inObject, newVars, s)
 		// Parameters are free inside the body, but not visible here or outside
-		for _, param := range a.Parameters {
+		for _, param := range a.Parameters.Required {
+			s.freeVars.Remove(param.Name)
+		}
+		for _, param := range a.Parameters.Optional {
 			s.freeVars.Remove(param.Name)
 		}
 	case *ast.Import:

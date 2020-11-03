@@ -23,10 +23,7 @@ gojsonnet.egg-info/
 /jsonnet-old
 /jsonnet-old.exe
 
-/jsonnetfmt
 /linter/jsonnet-lint/jsonnet-lint
 /tests_path.source
-
-/jsonnet-lint
 
 /builtin-benchmark-results

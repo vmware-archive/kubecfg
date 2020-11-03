@@ -19,6 +19,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/google/go-jsonnet/ast"
 	"github.com/google/go-jsonnet/internal/errors"
@@ -56,9 +57,9 @@ var bopPrecedence = map[ast.BinaryOp]precedence{
 
 // ---------------------------------------------------------------------------
 
-func makeUnexpectedError(t *token, while string) errors.StaticError {
+func makeUnexpectedError(t *token, while string) error {
 	return errors.MakeStaticError(
-		fmt.Sprintf("Unexpected: %v", t), t.loc).WithContext(while)
+		fmt.Sprintf("Unexpected: %v while %v", t, while), t.loc)
 }
 
 func locFromTokens(begin, end *token) ast.LocationRange {
@@ -88,14 +89,14 @@ func (p *parser) pop() *token {
 	return t
 }
 
-func (p *parser) unexpectedTokenError(tk tokenKind, t *token) errors.StaticError {
+func (p *parser) unexpectedTokenError(tk tokenKind, t *token) error {
 	if tk == t.kind {
-		panic("Unexpectedly expected token kind")
+		panic("Unexpectedly expected token kind.")
 	}
 	return errors.MakeStaticError(fmt.Sprintf("Expected token %v but got %v", tk, t), t.loc)
 }
 
-func (p *parser) popExpect(tk tokenKind) (*token, errors.StaticError) {
+func (p *parser) popExpect(tk tokenKind) (*token, error) {
 	t := p.pop()
 	if t.kind != tk {
 		return nil, p.unexpectedTokenError(tk, t)
@@ -103,7 +104,7 @@ func (p *parser) popExpect(tk tokenKind) (*token, errors.StaticError) {
 	return t, nil
 }
 
-func (p *parser) popExpectOp(op string) (*token, errors.StaticError) {
+func (p *parser) popExpectOp(op string) (*token, error) {
 	t := p.pop()
 	if t.kind != tokenOperator || t.data != op {
 		return nil, errors.MakeStaticError(
@@ -120,10 +121,20 @@ func (p *parser) doublePeek() *token {
 	return &p.t[p.currT+1]
 }
 
+// in some cases it's convenient to parse something as an expression, and later
+// decide that it should be just an identifer
+func astVarToIdentifier(node ast.Node) (ast.Fodder, *ast.Identifier, bool) {
+	v, ok := node.(*ast.Var)
+	if ok {
+		return v.NodeBase.Fodder, &v.Id, true
+	}
+	return nil, nil, false
+}
+
 // parseArgument parses either <f1> id <f2> = expr or just expr.
 // It returns either (<f1>, id, <f2>, expr) or (nil, nil, nil, expr)
 // respectively.
-func (p *parser) parseArgument() (ast.Fodder, *ast.Identifier, ast.Fodder, ast.Node, errors.StaticError) {
+func (p *parser) parseArgument() (ast.Fodder, *ast.Identifier, ast.Fodder, ast.Node, error) {
 	var idFodder ast.Fodder
 	var id *ast.Identifier
 	var eqFodder ast.Fodder
@@ -143,13 +154,14 @@ func (p *parser) parseArgument() (ast.Fodder, *ast.Identifier, ast.Fodder, ast.N
 }
 
 // TODO(sbarzowski) - this returned bool is weird
-func (p *parser) parseArguments(elementKind string) (*token, *ast.Arguments, bool, errors.StaticError) {
+// TODO(sbarzowski) - name - it's also used for parameters
+func (p *parser) parseArguments(elementKind string) (*token, *ast.Arguments, bool, error) {
 	args := &ast.Arguments{}
 	gotComma := false
+	commaFodder := ast.Fodder{}
 	namedArgumentAdded := false
 	first := true
 	for {
-		commaFodder := ast.Fodder{}
 		next := p.peek()
 
 		if next.kind == tokenParenR {
@@ -158,7 +170,7 @@ func (p *parser) parseArguments(elementKind string) (*token, *ast.Arguments, boo
 		}
 
 		if !first && !gotComma {
-			return nil, nil, false, errors.MakeStaticError(fmt.Sprintf("Expected a comma before next %s, got %s", elementKind, next), next.loc)
+			return nil, nil, false, errors.MakeStaticError(fmt.Sprintf("Expected a comma before next %s, got %s.", elementKind, next), next.loc)
 		}
 
 		idFodder, id, eqFodder, expr, err := p.parseArgument()
@@ -198,75 +210,41 @@ func (p *parser) parseArguments(elementKind string) (*token, *ast.Arguments, boo
 	}
 }
 
-// parseParameter parses either <f1> id <f2> = expr or just <f1> id.
-// It returns either (<f1>, id, <f2>, expr) or (<f1>, id, nil, nil)
-// respectively.
-func (p *parser) parseParameter() (ast.Parameter, errors.StaticError) {
-	ret := ast.Parameter{}
-	ident, err := p.popExpect(tokenIdentifier)
-	if err != nil {
-		return ret, err.WithContext("parsing parameter")
-	}
-	ret.Name = ast.Identifier(ident.data)
-	ret.NameFodder = ident.fodder
-	ret.LocRange = ident.loc
-	if p.peek().kind == tokenOperator && p.peek().data == "=" {
-		eq := p.pop()
-		ret.EqFodder = eq.fodder
-		ret.DefaultArg, err = p.parse(maxPrecedence)
-		if err != nil {
-			return ret, err
-		}
-		ret.LocRange = locFromTokenAST(ident, ret.DefaultArg)
-	}
-	return ret, nil
-}
-
 // TODO(sbarzowski) - this returned bool is weird
-func (p *parser) parseParameters(elementKind string) (*token, []ast.Parameter, bool, errors.StaticError) {
-
-	var parenR *token
-	var params []ast.Parameter
-	gotComma := false
-	first := true
-	for {
-		next := p.peek()
-
-		if next.kind == tokenParenR {
-			// gotComma can be true or false here.
-			parenR = p.pop()
-			break
-		}
-
-		if !first && !gotComma {
-			return nil, nil, false, errors.MakeStaticError(fmt.Sprintf("Expected a comma before next %s, got %s", elementKind, next), next.loc)
-		}
-
-		param, err := p.parseParameter()
-		if err != nil {
-			return nil, nil, false, err
-		}
-
-		if p.peek().kind == tokenComma {
-			comma := p.pop()
-			param.CommaFodder = comma.fodder
-			gotComma = true
-		} else {
-			gotComma = false
-		}
-		params = append(params, param)
-
-		first = false
+func (p *parser) parseParameters(elementKind string) (*token, *ast.Parameters, bool, error) {
+	parenR, args, trailingComma, err := p.parseArguments(elementKind)
+	if err != nil {
+		return nil, nil, false, err
 	}
-
-	return parenR, params, gotComma, nil
+	var params ast.Parameters
+	for _, arg := range args.Positional {
+		idFodder, id, ok := astVarToIdentifier(arg.Expr)
+		if !ok {
+			return nil, nil, false, errors.MakeStaticError(fmt.Sprintf("Expected simple identifier but got a complex expression."), *arg.Expr.Loc())
+		}
+		params.Required = append(params.Required, ast.CommaSeparatedID{
+			NameFodder:  idFodder,
+			Name:        *id,
+			CommaFodder: arg.CommaFodder,
+		})
+	}
+	for _, arg := range args.Named {
+		params.Optional = append(params.Optional, ast.NamedParameter{
+			NameFodder:  arg.NameFodder,
+			Name:        arg.Name,
+			EqFodder:    arg.EqFodder,
+			DefaultArg:  arg.Arg,
+			CommaFodder: arg.CommaFodder,
+		})
+	}
+	return parenR, &params, trailingComma, nil
 }
 
 // TODO(sbarzowski) add location to all individual binds
-func (p *parser) parseBind(binds *ast.LocalBinds) (*token, errors.StaticError) {
-	varID, popErr := p.popExpect(tokenIdentifier)
-	if popErr != nil {
-		return nil, popErr
+func (p *parser) parseBind(binds *ast.LocalBinds) (*token, error) {
+	varID, err := p.popExpect(tokenIdentifier)
+	if err != nil {
+		return nil, err
 	}
 	for _, b := range *binds {
 		if b.Variable == ast.Identifier(varID.data) {
@@ -283,16 +261,16 @@ func (p *parser) parseBind(binds *ast.LocalBinds) (*token, errors.StaticError) {
 		}
 		fun = &ast.Function{
 			ParenLeftFodder:  parenL.fodder,
-			Parameters:       params,
+			Parameters:       *params,
 			TrailingComma:    gotComma,
 			ParenRightFodder: parenR.fodder,
 			// Body gets filled in later.
 		}
 	}
 
-	eqToken, popErr := p.popExpectOp("=")
-	if popErr != nil {
-		return nil, popErr
+	eqToken, err := p.popExpectOp("=")
+	if err != nil {
+		return nil, err
 	}
 	body, err := p.parse(maxPrecedence)
 	if err != nil {
@@ -314,7 +292,6 @@ func (p *parser) parseBind(binds *ast.LocalBinds) (*token, errors.StaticError) {
 			Body:        body,
 			Fun:         fun,
 			CloseFodder: delim.fodder,
-			LocRange:    locFromTokenAST(varID, body),
 		})
 	} else {
 		*binds = append(*binds, ast.LocalBind{
@@ -323,14 +300,13 @@ func (p *parser) parseBind(binds *ast.LocalBinds) (*token, errors.StaticError) {
 			EqFodder:    eqToken.fodder,
 			Body:        body,
 			CloseFodder: delim.fodder,
-			LocRange:    locFromTokenAST(varID, body),
 		})
 	}
 
 	return delim, nil
 }
 
-func (p *parser) parseObjectAssignmentOp() (opFodder ast.Fodder, plusSugar bool, hide ast.ObjectFieldHide, err errors.StaticError) {
+func (p *parser) parseObjectAssignmentOp() (opFodder ast.Fodder, plusSugar bool, hide ast.ObjectFieldHide, err error) {
 	op, err := p.popExpect(tokenOperator)
 	if err != nil {
 		return
@@ -373,7 +349,7 @@ func (p *parser) parseObjectAssignmentOp() (opFodder ast.Fodder, plusSugar bool,
 // +gen set
 type LiteralField string
 
-func (p *parser) parseObjectRemainderComp(fields ast.ObjectFields, gotComma bool, tok *token, next *token) (ast.Node, *token, errors.StaticError) {
+func (p *parser) parseObjectRemainderComp(fields ast.ObjectFields, gotComma bool, tok *token, next *token) (ast.Node, *token, error) {
 	numFields := 0
 	numAsserts := 0
 	var field ast.ObjectField
@@ -390,16 +366,16 @@ func (p *parser) parseObjectRemainderComp(fields ast.ObjectFields, gotComma bool
 	}
 
 	if numAsserts > 0 {
-		return nil, nil, errors.MakeStaticError("Object comprehension cannot have asserts", next.loc)
+		return nil, nil, errors.MakeStaticError("Object comprehension cannot have asserts.", next.loc)
 	}
 	if numFields != 1 {
-		return nil, nil, errors.MakeStaticError("Object comprehension can only have one field", next.loc)
+		return nil, nil, errors.MakeStaticError("Object comprehension can only have one field.", next.loc)
 	}
 	if field.Hide != ast.ObjectFieldInherit {
-		return nil, nil, errors.MakeStaticError("Object comprehensions cannot have hidden fields", next.loc)
+		return nil, nil, errors.MakeStaticError("Object comprehensions cannot have hidden fields.", next.loc)
 	}
 	if field.Kind != ast.ObjectFieldExpr {
-		return nil, nil, errors.MakeStaticError("Object comprehensions can only have [e] fields", next.loc)
+		return nil, nil, errors.MakeStaticError("Object comprehensions can only have [e] fields.", next.loc)
 	}
 	spec, last, err := p.parseComprehensionSpecs(next, tokenBraceR)
 	if err != nil {
@@ -414,7 +390,7 @@ func (p *parser) parseObjectRemainderComp(fields ast.ObjectFields, gotComma bool
 	}, last, nil
 }
 
-func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *token, next *token) (*ast.ObjectField, errors.StaticError) {
+func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *token, next *token) (*ast.ObjectField, error) {
 	var kind ast.ObjectFieldKind
 	var fodder1 ast.Fodder
 	var expr1 ast.Node
@@ -432,7 +408,7 @@ func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *
 	default:
 		fodder1 = next.fodder
 		kind = ast.ObjectFieldExpr
-		var err errors.StaticError
+		var err error
 		expr1, err = p.parse(maxPrecedence)
 		if err != nil {
 			return nil, err
@@ -448,10 +424,10 @@ func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *
 	methComma := false
 	var parenL *token
 	var parenR *token
-	var params []ast.Parameter
+	var params *ast.Parameters
 	if p.peek().kind == tokenParenL {
 		parenL = p.pop()
-		var err errors.StaticError
+		var err error
 		parenR, params, methComma, err = p.parseParameters("method parameter")
 		if err != nil {
 			return nil, err
@@ -485,7 +461,7 @@ func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *
 	if isMethod {
 		method = &ast.Function{
 			ParenLeftFodder:  parenL.fodder,
-			Parameters:       params,
+			Parameters:       *params,
 			TrailingComma:    methComma,
 			ParenRightFodder: parenR.fodder,
 			Body:             body,
@@ -509,14 +485,13 @@ func (p *parser) parseObjectRemainderField(literalFields *LiteralFieldSet, tok *
 		OpFodder:    opFodder,
 		Expr2:       body,
 		CommaFodder: commaFodder,
-		LocRange:    locFromTokenAST(next, body),
 	}, nil
 }
 
-func (p *parser) parseObjectRemainderLocal(binds *ast.IdentifierSet, tok *token, next *token) (*ast.ObjectField, errors.StaticError) {
-	varID, popErr := p.popExpect(tokenIdentifier)
-	if popErr != nil {
-		return nil, popErr
+func (p *parser) parseObjectRemainderLocal(binds *ast.IdentifierSet, tok *token, next *token) (*ast.ObjectField, error) {
+	varID, err := p.popExpect(tokenIdentifier)
+	if err != nil {
+		return nil, err
 	}
 
 	id := ast.Identifier(varID.data)
@@ -531,19 +506,18 @@ func (p *parser) parseObjectRemainderLocal(binds *ast.IdentifierSet, tok *token,
 	funcComma := false
 	var parenL *token
 	var parenR *token
-	var params []ast.Parameter
+	var params *ast.Parameters
 	if p.peek().kind == tokenParenL {
 		parenL = p.pop()
 		isMethod = true
-		var err errors.StaticError
 		parenR, params, funcComma, err = p.parseParameters("function parameter")
 		if err != nil {
 			return nil, err
 		}
 	}
-	opToken, popErr := p.popExpectOp("=")
-	if popErr != nil {
-		return nil, popErr
+	opToken, err := p.popExpectOp("=")
+	if err != nil {
+		return nil, err
 	}
 
 	body, err := p.parse(maxPrecedence)
@@ -555,7 +529,7 @@ func (p *parser) parseObjectRemainderLocal(binds *ast.IdentifierSet, tok *token,
 	if isMethod {
 		method = &ast.Function{
 			ParenLeftFodder:  parenL.fodder,
-			Parameters:       params,
+			Parameters:       *params,
 			ParenRightFodder: parenR.fodder,
 			TrailingComma:    funcComma,
 			Body:             body,
@@ -580,16 +554,14 @@ func (p *parser) parseObjectRemainderLocal(binds *ast.IdentifierSet, tok *token,
 		OpFodder:    opToken.fodder,
 		Expr2:       body,
 		CommaFodder: commaFodder,
-		LocRange:    locFromTokenAST(varID, body),
 	}, nil
 }
 
-func (p *parser) parseObjectRemainderAssert(tok *token, next *token) (*ast.ObjectField, errors.StaticError) {
+func (p *parser) parseObjectRemainderAssert(tok *token, next *token) (*ast.ObjectField, error) {
 	cond, err := p.parse(maxPrecedence)
 	if err != nil {
 		return nil, err
 	}
-	lastAST := cond // for determining location
 	var msg ast.Node
 	var colonFodder ast.Fodder
 	if p.peek().kind == tokenOperator && p.peek().data == ":" {
@@ -599,7 +571,6 @@ func (p *parser) parseObjectRemainderAssert(tok *token, next *token) (*ast.Objec
 		if err != nil {
 			return nil, err
 		}
-		lastAST = msg
 	}
 
 	var commaFodder ast.Fodder
@@ -615,12 +586,11 @@ func (p *parser) parseObjectRemainderAssert(tok *token, next *token) (*ast.Objec
 		OpFodder:    colonFodder,
 		Expr3:       msg,
 		CommaFodder: commaFodder,
-		LocRange:    locFromTokenAST(next, lastAST),
 	}, nil
 }
 
 // Parse object or object comprehension without leading brace
-func (p *parser) parseObjectRemainder(tok *token) (ast.Node, *token, errors.StaticError) {
+func (p *parser) parseObjectRemainder(tok *token) (ast.Node, *token, error) {
 	var fields ast.ObjectFields
 	literalFields := make(LiteralFieldSet)
 	binds := make(ast.IdentifierSet)
@@ -647,11 +617,11 @@ func (p *parser) parseObjectRemainder(tok *token) (ast.Node, *token, errors.Stat
 		}
 
 		if !gotComma && !first {
-			return nil, nil, errors.MakeStaticError("Expected a comma before next field", next.loc)
+			return nil, nil, errors.MakeStaticError("Expected a comma before next field.", next.loc)
 		}
 
 		var field *ast.ObjectField
-		var err errors.StaticError
+		var err error
 		switch next.kind {
 		case tokenBracketL, tokenIdentifier, tokenStringDouble, tokenStringSingle,
 			tokenStringBlock, tokenVerbatimStringDouble, tokenVerbatimStringSingle:
@@ -690,14 +660,14 @@ func (p *parser) parseObjectRemainder(tok *token) (ast.Node, *token, errors.Stat
 }
 
 /* parses for x in expr for y in expr if expr for z in expr ... */
-func (p *parser) parseComprehensionSpecs(forToken *token, end tokenKind) (*ast.ForSpec, *token, errors.StaticError) {
-	var parseComprehensionSpecsHelper func(forToken *token, outer *ast.ForSpec) (*ast.ForSpec, *token, errors.StaticError)
-	parseComprehensionSpecsHelper = func(forToken *token, outer *ast.ForSpec) (*ast.ForSpec, *token, errors.StaticError) {
+func (p *parser) parseComprehensionSpecs(forToken *token, end tokenKind) (*ast.ForSpec, *token, error) {
+	var parseComprehensionSpecsHelper func(forToken *token, outer *ast.ForSpec) (*ast.ForSpec, *token, error)
+	parseComprehensionSpecsHelper = func(forToken *token, outer *ast.ForSpec) (*ast.ForSpec, *token, error) {
 		var ifSpecs []ast.IfSpec
 
-		varID, popErr := p.popExpect(tokenIdentifier)
-		if popErr != nil {
-			return nil, nil, popErr
+		varID, err := p.popExpect(tokenIdentifier)
+		if err != nil {
+			return nil, nil, err
 		}
 		id := ast.Identifier(varID.data)
 		inToken, err := p.popExpect(tokenIn)
@@ -745,7 +715,7 @@ func (p *parser) parseComprehensionSpecs(forToken *token, end tokenKind) (*ast.F
 
 // Assumes that the leading '[' has already been consumed and passed as tok.
 // Should read up to and consume the trailing ']'
-func (p *parser) parseArray(tok *token) (ast.Node, errors.StaticError) {
+func (p *parser) parseArray(tok *token) (ast.Node, error) {
 	if p.peek().kind == tokenBracketR {
 		bracketR := p.pop()
 		return &ast.Array{
@@ -798,7 +768,7 @@ func (p *parser) parseArray(tok *token) (ast.Node, errors.StaticError) {
 			break
 		}
 		if !gotComma {
-			return nil, errors.MakeStaticError("Expected a comma before next array element", next.loc)
+			return nil, errors.MakeStaticError("Expected a comma before next array element.", next.loc)
 		}
 		nextElem, err := p.parse(maxPrecedence)
 		if err != nil {
@@ -843,11 +813,10 @@ func tokenStringToAst(tok *token) *ast.LiteralString {
 		}
 	case tokenStringBlock:
 		return &ast.LiteralString{
-			NodeBase:        ast.NewNodeBaseLoc(tok.loc, tok.fodder),
-			Value:           tok.data,
-			Kind:            ast.StringBlock,
-			BlockIndent:     tok.stringBlockIndent,
-			BlockTermIndent: tok.stringBlockTermIndent,
+			NodeBase:    ast.NewNodeBaseLoc(tok.loc, tok.fodder),
+			Value:       tok.data,
+			Kind:        ast.StringBlock,
+			BlockIndent: tok.stringBlockIndent,
 		}
 	case tokenVerbatimStringDouble:
 		return &ast.LiteralString{
@@ -866,7 +835,7 @@ func tokenStringToAst(tok *token) *ast.LiteralString {
 	}
 }
 
-func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
+func (p *parser) parseTerminal() (ast.Node, error) {
 	tok := p.pop()
 	switch tok.kind {
 	case tokenAssert, tokenBraceR, tokenBracketR, tokenComma, tokenDot, tokenElse,
@@ -875,7 +844,7 @@ func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
 		return nil, makeUnexpectedError(tok, "parsing terminal")
 
 	case tokenEndOfFile:
-		return nil, errors.MakeStaticError("Unexpected end of file", tok.loc)
+		return nil, errors.MakeStaticError("Unexpected end of file.", tok.loc)
 
 	case tokenBraceL:
 		obj, _, err := p.parseObjectRemainder(tok)
@@ -901,8 +870,15 @@ func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
 
 	// Literals
 	case tokenNumber:
+		// This shouldn't fail as the lexer should make sure we have good input but
+		// we handle the error regardless.
+		num, err := strconv.ParseFloat(tok.data, 64)
+		if err != nil {
+			return nil, errors.MakeStaticError("Could not parse floating point number.", tok.loc)
+		}
 		return &ast.LiteralNumber{
 			NodeBase:       ast.NewNodeBaseLoc(tok.loc, tok.fodder),
+			Value:          num,
 			OriginalString: tok.data,
 		}, nil
 	case tokenStringDouble, tokenStringSingle,
@@ -951,7 +927,7 @@ func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
 			idFodder = fieldID.fodder
 			id = (*ast.Identifier)(&fieldID.data)
 		case tokenBracketL:
-			var err errors.StaticError
+			var err error
 			index, err = p.parse(maxPrecedence)
 			if err != nil {
 				return nil, err
@@ -962,7 +938,7 @@ func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
 			}
 			idFodder = bracketR.fodder
 		default:
-			return nil, errors.MakeStaticError("Expected . or [ after super", tok.loc)
+			return nil, errors.MakeStaticError("Expected . or [ after super.", tok.loc)
 		}
 		return &ast.SuperIndex{
 			NodeBase:  ast.NewNodeBaseLoc(tok.loc, tok.fodder),
@@ -976,11 +952,11 @@ func (p *parser) parseTerminal() (ast.Node, errors.StaticError) {
 	return nil, errors.MakeStaticError(fmt.Sprintf("INTERNAL ERROR: Unknown tok kind: %v", tok.kind), tok.loc)
 }
 
-func (p *parser) parsingFailure(msg string, tok *token) (ast.Node, errors.StaticError) {
+func (p *parser) parsingFailure(msg string, tok *token) (ast.Node, error) {
 	return nil, errors.MakeStaticError(msg, tok.loc)
 }
 
-func (p *parser) parse(prec precedence) (ast.Node, errors.StaticError) {
+func (p *parser) parse(prec precedence) (ast.Node, error) {
 	begin := p.peek()
 
 	switch begin.kind {
@@ -1082,7 +1058,7 @@ func (p *parser) parse(prec precedence) (ast.Node, errors.StaticError) {
 		return &ast.Function{
 			NodeBase:         ast.NewNodeBaseLoc(locFromTokenAST(begin, body), begin.fodder),
 			ParenLeftFodder:  next.fodder,
-			Parameters:       params,
+			Parameters:       *params,
 			TrailingComma:    gotComma,
 			ParenRightFodder: parenR.fodder,
 			Body:             body,
@@ -1296,11 +1272,10 @@ func (p *parser) parse(prec precedence) (ast.Node, errors.StaticError) {
 				}
 				id := ast.Identifier(fieldID.data)
 				lhs = &ast.Index{
-					NodeBase:           ast.NewNodeBaseLoc(locFromTokens(begin, fieldID), ast.Fodder{}),
-					Target:             lhs,
-					LeftBracketFodder:  op.fodder,
-					Id:                 &id,
-					RightBracketFodder: fieldID.fodder,
+					NodeBase:          ast.NewNodeBaseLoc(locFromTokens(begin, fieldID), ast.Fodder{}),
+					Target:            lhs,
+					LeftBracketFodder: op.fodder,
+					Id:                &id,
 				}
 			case tokenParenL:
 				end, args, gotComma, err := p.parseArguments("function argument")
@@ -1363,31 +1338,28 @@ func (p *parser) parse(prec precedence) (ast.Node, errors.StaticError) {
 
 // ---------------------------------------------------------------------------
 
-// Parse parses a slice of tokens into a parse tree.  Any fodder after the final token is
-// returned as well.
-func Parse(t Tokens) (ast.Node, ast.Fodder, errors.StaticError) {
+// Parse parses a slice of tokens into a parse tree.
+func Parse(t Tokens) (ast.Node, error) {
 	p := makeParser(t)
 	expr, err := p.parse(maxPrecedence)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	eof := p.peek()
 
-	if eof.kind != tokenEndOfFile {
-		return nil, nil, errors.MakeStaticError(fmt.Sprintf("Did not expect: %v", eof), eof.loc)
+	if p.peek().kind != tokenEndOfFile {
+		return nil, errors.MakeStaticError(fmt.Sprintf("Did not expect: %v", p.peek()), p.peek().loc)
 	}
 
 	addContext(expr, &topLevelContext, anonymous)
 
-	return expr, eof.fodder, nil
+	return expr, nil
 }
 
 // SnippetToRawAST converts a Jsonnet code snippet to an AST (without any transformations).
-// Any fodder after the final token is returned as well.
-func SnippetToRawAST(diagnosticFilename ast.DiagnosticFileName, importedFilename, snippet string) (ast.Node, ast.Fodder, error) {
-	tokens, err := Lex(diagnosticFilename, importedFilename, snippet)
+func SnippetToRawAST(filename string, snippet string) (ast.Node, error) {
+	tokens, err := Lex(filename, snippet)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	return Parse(tokens)
 }

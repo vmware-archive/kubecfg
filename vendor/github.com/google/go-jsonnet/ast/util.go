@@ -16,9 +16,7 @@ limitations under the License.
 
 package ast
 
-import (
-	"sort"
-)
+import "sort"
 
 // AddIdentifiers adds a slice of identifiers to an identifier set.
 func (i IdentifierSet) AddIdentifiers(idents Identifiers) {
