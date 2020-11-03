@@ -3,7 +3,9 @@
 package integration
 
 import (
-	"k8s.io/api/core/v1"
+	"context"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -50,7 +52,7 @@ var _ = Describe("delete", func() {
 
 		Context("With no existing state", func() {
 			It("should succeed", func() {
-				Expect(c.ConfigMaps(ns).List(metav1.ListOptions{})).
+				Expect(c.ConfigMaps(ns).List(context.Background(), metav1.ListOptions{})).
 					To(WithTransform(objNames, BeEmpty()))
 			})
 		})
@@ -68,14 +70,14 @@ var _ = Describe("delete", func() {
 				toCreate = append(toCreate, baz)
 
 				for _, cm := range toCreate {
-					_, err := c.ConfigMaps(ns).Create(cm)
+					_, err := c.ConfigMaps(ns).Create(context.Background(), cm, metav1.CreateOptions{})
 					Expect(err).To(Not(HaveOccurred()))
 				}
 			})
 
 			It("should delete mentioned objects", func() {
 				Eventually(func() (*v1.ConfigMapList, error) {
-					return c.ConfigMaps(ns).List(metav1.ListOptions{})
+					return c.ConfigMaps(ns).List(context.Background(), metav1.ListOptions{})
 				}).Should(WithTransform(objNames, ConsistOf("baz")))
 			})
 		})

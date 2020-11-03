@@ -3,11 +3,12 @@
 package integration
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/exec"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -93,7 +94,7 @@ var _ = Describe("flags", func() {
 
 			It("should update correct namespace", func() {
 				Expect(kubecfgExit).NotTo(HaveOccurred())
-				Expect(c.ConfigMaps(ns).Get(testName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), testName, metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 		})
@@ -108,7 +109,7 @@ var _ = Describe("flags", func() {
 
 			It("should update correct namespace", func() {
 				Expect(kubecfgExit).NotTo(HaveOccurred())
-				Expect(c.ConfigMaps(ns).Get(testName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), testName, metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 		})

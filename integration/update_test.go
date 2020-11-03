@@ -4,10 +4,11 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,7 +117,7 @@ var _ = Describe("update", func() {
 
 		Context("With no existing state", func() {
 			It("should produce expected object", func() {
-				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
 				Expect(kubecfgOut.String()).
 					To(ContainSubstring("Creating configmaps %s", cmName))
@@ -127,12 +128,12 @@ var _ = Describe("update", func() {
 
 		Context("With existing non-kubecfg object", func() {
 			BeforeEach(func() {
-				_, err := c.ConfigMaps(ns).Create(cm)
+				_, err := c.ConfigMaps(ns).Create(context.Background(), cm, metav1.CreateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("should succeed", func() {
-				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
 				// NB: may report "Updating" - that's ok.
 				Expect(kubecfgOut.String()).
@@ -145,12 +146,12 @@ var _ = Describe("update", func() {
 				err := runKubecfgWith([]string{"update", "-vv", "-n", ns}, []runtime.Object{cm})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})).
 					To(WithTransform(metav1.Object.GetAnnotations, HaveKey(kubecfg.AnnotationOrigObject)))
 			})
 
 			It("should not report a change", func() {
-				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
 				// no change -> should report neither Updating nor Creating
 				Expect(kubecfgOut.String()).
@@ -172,7 +173,7 @@ var _ = Describe("update", func() {
 			})
 
 			It("should update the object", func() {
-				Expect(c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})).
 					To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
 				Expect(kubecfgOut.String()).
 					To(ContainSubstring("Updating configmaps %s", cmName))
@@ -193,14 +194,14 @@ var _ = Describe("update", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// ... and then modified by another controller/whatever.
-				o, err := c.ConfigMaps(ns).Patch(cmName, types.MergePatchType,
-					[]byte(`{"metadata": {"annotations": {"addedby": "3rd-party"}}}`))
+				o, err := c.ConfigMaps(ns).Patch(context.Background(), cmName, types.MergePatchType,
+					[]byte(`{"metadata": {"annotations": {"addedby": "3rd-party"}}}`), metav1.PatchOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				fmt.Fprintf(GinkgoWriter, "patch result is %v\n", o)
 			})
 
 			It("should update the object", func() {
-				cm, err := c.ConfigMaps(ns).Get(cmName, metav1.GetOptions{})
+				cm, err := c.ConfigMaps(ns).Get(context.Background(), cmName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(cm).To(WithTransform(cmData, HaveKeyWithValue("foo", "bar")))
 				Expect(cm).To(WithTransform(metav1.Object.GetAnnotations, And(
@@ -282,11 +283,11 @@ var _ = Describe("update", func() {
 					Version:  "v1beta1",
 					Resource: "customresourcedefinitions",
 				})
-				_ = rc.Delete("things.random.example.com", &metav1.DeleteOptions{})
+				_ = rc.Delete(context.Background(), "things.random.example.com", metav1.DeleteOptions{})
 			})
 
 			It("should update correctly", func() {
-				Expect(rc.Namespace(ns).Get("thing1", metav1.GetOptions{})).
+				Expect(rc.Namespace(ns).Get(context.Background(), "thing1", metav1.GetOptions{})).
 					To(WithTransform(metav1.Object.GetAnnotations,
 						HaveKeyWithValue("gen", "one")))
 
@@ -297,7 +298,7 @@ var _ = Describe("update", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// Verify result
-				Expect(rc.Namespace(ns).Get("thing1", metav1.GetOptions{})).
+				Expect(rc.Namespace(ns).Get(context.Background(), "thing1", metav1.GetOptions{})).
 					To(WithTransform(metav1.Object.GetAnnotations, And(
 						HaveKeyWithValue("gen", "two"),
 						HaveKeyWithValue("unrelated", "baz"),
@@ -328,7 +329,7 @@ var _ = Describe("update", func() {
 			})
 
 			It("should not change ports on subsequent updates", func() {
-				svc, err := c.Services(ns).Get(svcName, metav1.GetOptions{})
+				svc, err := c.Services(ns).Get(context.Background(), svcName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(svc).To(WithTransform(metav1.Object.GetAnnotations,
 					HaveKeyWithValue("generation", "one")))
@@ -341,7 +342,7 @@ var _ = Describe("update", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// Check NodePort hasn't changed
-				svc, err = c.Services(ns).Get(svcName, metav1.GetOptions{})
+				svc, err = c.Services(ns).Get(context.Background(), svcName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(svc).To(WithTransform(metav1.Object.GetAnnotations,
 					HaveKeyWithValue("generation", "two")))
@@ -384,9 +385,10 @@ var _ = Describe("update", func() {
 			It("should merge correctly into containers[]", func() {
 				// Simulate change by 3rd-party
 				appsc := appsv1client.NewForConfigOrDie(clusterConfigOrDie())
-				_, err := appsc.Deployments(ns).Patch(deployName,
+				_, err := appsc.Deployments(ns).Patch(context.Background(), deployName,
 					types.StrategicMergePatchType,
 					[]byte(`{"spec": {"template": {"spec": {"containers": [{"name": "c", "resources": {"limits": {"cpu": "1"}}}]}}}}`),
+					metav1.PatchOptions{},
 				)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -396,7 +398,7 @@ var _ = Describe("update", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				// Check container.resources was preserved
-				d, err := appsc.Deployments(ns).Get(deployName, metav1.GetOptions{})
+				d, err := appsc.Deployments(ns).Get(context.Background(), deployName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(d).To(WithTransform(metav1.Object.GetAnnotations,
 					HaveKeyWithValue("gen", "two")))
@@ -437,13 +439,13 @@ var _ = Describe("update", func() {
 		})
 
 		It("should create objects in the correct namespaces", func() {
-			Expect(c.ConfigMaps(ns).Get("nons", metav1.GetOptions{})).
+			Expect(c.ConfigMaps(ns).Get(context.Background(), "nons", metav1.GetOptions{})).
 				NotTo(BeNil())
 
-			Expect(c.ConfigMaps(ns).Get("ns1", metav1.GetOptions{})).
+			Expect(c.ConfigMaps(ns).Get(context.Background(), "ns1", metav1.GetOptions{})).
 				NotTo(BeNil())
 
-			Expect(c.ConfigMaps(ns2).Get("ns2", metav1.GetOptions{})).
+			Expect(c.ConfigMaps(ns2).Get(context.Background(), "ns2", metav1.GetOptions{})).
 				NotTo(BeNil())
 		})
 	})
@@ -465,7 +467,7 @@ var _ = Describe("update", func() {
 
 		JustBeforeEach(func() {
 			for _, obj := range preExist {
-				_, err := c.ConfigMaps(ns).Create(obj)
+				_, err := c.ConfigMaps(ns).Create(context.Background(), obj, metav1.CreateOptions{})
 				Expect(err).NotTo(HaveOccurred())
 			}
 
@@ -578,7 +580,7 @@ var _ = Describe("update", func() {
 			})
 
 			It("should add gctag to new object", func() {
-				o, err := c.ConfigMaps(ns).Get("new", metav1.GetOptions{})
+				o, err := c.ConfigMaps(ns).Get(context.Background(), "new", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
@@ -588,7 +590,7 @@ var _ = Describe("update", func() {
 			})
 
 			It("should keep gctag on existing object", func() {
-				o, err := c.ConfigMaps(ns).Get("existing", metav1.GetOptions{})
+				o, err := c.ConfigMaps(ns).Get(context.Background(), "existing", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
@@ -599,29 +601,29 @@ var _ = Describe("update", func() {
 
 			// [gctag-migration]: Pre-migration test. Remove in phase2
 			It("should add gctag label to pre-migration object", func() {
-				o, err := c.ConfigMaps(ns).Get("existing-premigration", metav1.GetOptions{})
+				o, err := c.ConfigMaps(ns).Get(context.Background(), "existing-premigration", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(o.ObjectMeta.Labels).
 					To(HaveKeyWithValue(kubecfg.LabelGcTag, gcTag))
 			})
 
 			It("should delete stale object", func() {
-				_, err := c.ConfigMaps(ns).Get("existing-stale", metav1.GetOptions{})
+				_, err := c.ConfigMaps(ns).Get(context.Background(), "existing-stale", metav1.GetOptions{})
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			})
 
 			It("should not delete tagless object", func() {
-				Expect(c.ConfigMaps(ns).Get("existing-stale-notag", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), "existing-stale-notag", metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 
 			It("should not delete object with different gc tag", func() {
-				Expect(c.ConfigMaps(ns).Get("existing-othertag", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), "existing-othertag", metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 
 			It("should not delete strategy=ignore object", func() {
-				Expect(c.ConfigMaps(ns).Get("existing-precious", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), "existing-precious", metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 		})
@@ -653,12 +655,12 @@ var _ = Describe("update", func() {
 			})
 
 			It("should not delete existing object", func() {
-				Expect(c.ConfigMaps(ns).Get("existing", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), "existing", metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 
 			It("should not create new object", func() {
-				_, err := c.ConfigMaps(ns).Get("new", metav1.GetOptions{})
+				_, err := c.ConfigMaps(ns).Get(context.Background(), "new", metav1.GetOptions{})
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -690,12 +692,12 @@ var _ = Describe("update", func() {
 			})
 
 			It("should not delete existing object", func() {
-				Expect(c.ConfigMaps(ns).Get("existing", metav1.GetOptions{})).
+				Expect(c.ConfigMaps(ns).Get(context.Background(), "existing", metav1.GetOptions{})).
 					NotTo(BeNil())
 			})
 
 			It("should add gctag to new object", func() {
-				o, err := c.ConfigMaps(ns).Get("new", metav1.GetOptions{})
+				o, err := c.ConfigMaps(ns).Get(context.Background(), "new", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				// [gctag-migration]: Remove annotation in phase2
 				Expect(o.ObjectMeta.Annotations).
