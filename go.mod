@@ -11,7 +11,7 @@ require (
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.5
 	github.com/google/go-cmp v0.4.0 // indirect
-	github.com/google/go-jsonnet v0.15.0
+	github.com/google/go-jsonnet v0.17.0
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.4.0
 	github.com/imdario/mergo v0.3.9 // indirect
@@ -19,11 +19,11 @@ require (
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
-	github.com/mattn/go-isatty v0.0.7
+	github.com/mattn/go-isatty v0.0.11
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.0
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sergi/go-diff v1.0.0
+	github.com/sergi/go-diff v1.1.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.7
 	github.com/spf13/pflag v1.0.5
@@ -36,7 +36,6 @@ require (
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20200409111301-baae70f3302d // indirect
 	google.golang.org/grpc v1.28.1 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver v0.17.4
@@ -49,13 +48,11 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-replace (
-	// NB: pinning gnostic to v0.4.0 as v0.4.1 renamed s/OpenAPIv2/openapiv2/ at
-	//       https://github.com/googleapis/gnostic/pull/155,
-	//     while k8s.io/client-go/discovery@v0.17 still uses OpenAPIv2,
-	//     even as of 2020/04/09 there's no released k8s.io/client-go/discovery version
-	//     (latest 0.18.1) fixed to use openapiv2
-	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
-)
+// NB: pinning gnostic to v0.4.0 as v0.4.1 renamed s/OpenAPIv2/openapiv2/ at
+//       https://github.com/googleapis/gnostic/pull/155,
+//     while k8s.io/client-go/discovery@v0.17 still uses OpenAPIv2,
+//     even as of 2020/04/09 there's no released k8s.io/client-go/discovery version
+//     (latest 0.18.1) fixed to use openapiv2
+replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
 
 go 1.13
