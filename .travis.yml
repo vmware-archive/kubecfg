@@ -5,6 +5,7 @@ go:
   # first value (ditto for `os` below).
   # NB: release condition below also references (one) of the values in
   # this list.  Update there too!
+  - 1.15.x
   - 1.14.x
 
 os:
@@ -94,7 +95,7 @@ deploy:
     secure: "fzKvrCO9cifb7mw5Pu89lJ5wX6DF7PXKH+gy2Ca13uEGITOHI+Co9gCwm15nvxkm2k/hpRwD5NmC2kcbP/ludWmyd1okd304M2vh3PZsB1iZq5HGPCMRnU0dAANRVgsqOIyduSzV733WPuu2jT1CrkFcHhava1vheVN0+pR3h5oql1BLVNidr5TNkIvkRXi37sex939MqcNONNzBu1afQwOXx6h2nGAtzFR6+L6X4BHzkTUZSJ+Rt8lvsrFKc75RRxYmroeFEYMwPAcLr7xz2A0ABHhdTmHS7n3gwmHo9rBAa92TfiVFEUux6RDdgkn6RvqlDOW8XKS3eVeTZaBXL/YkTeaNIczQYgSGMfvBRlYPowIC9UdxexmOAhYPWajSJFSMomdLQsZLHnFrxSsdpj4udC04X4EeQto5HnHERbdz7q97IMdvjI53xfEOW9fgwpsc3lLN/BXybzqVWFQxfvQnNZYQ9ZU30lJ9w8WVsoTb8E3B9w/nf3v7y1+33KDQ/aJnHB72seG/HYypQZg0Ob35yC7CsTN/va+UX/Bh2A1fCa5Bp6o1OCEWq0tAxwL7P7HDKMBfUZECwAodMs5VpHMxqdKaDUZh5OATGBk7Ite3BWsjugdGqwEh9fzXFQN1Rmz3cFYZqYYZ8mtQUeKQ9omVGpqh2JkHlIEGRznzw9c="
   file: $EXE_NAME
   on:
-    condition: x$DO_INTEGRATION_TEST = x && ${TRAVIS_GO_VERSION}.0 =~ ^1\.14\.
+    condition: x$DO_INTEGRATION_TEST = x && ${TRAVIS_GO_VERSION}.0 =~ ^1\.15\.
     tags: true
   provider: releases
   skip_cleanup: true
