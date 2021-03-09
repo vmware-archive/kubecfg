@@ -60,6 +60,6 @@ var deleteCmd = &cobra.Command{
 			return err
 		}
 
-		return c.Run(objs)
+		return c.Run(cmd.Context(), objs)
 	},
 }

@@ -104,6 +104,6 @@ var updateCmd = &cobra.Command{
 			}
 		}
 
-		return c.Run(objs)
+		return c.Run(cmd.Context(), objs)
 	},
 }

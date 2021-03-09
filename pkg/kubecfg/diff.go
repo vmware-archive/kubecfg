@@ -17,6 +17,7 @@ package kubecfg
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -53,7 +54,7 @@ type DiffCmd struct {
 	DiffStrategy string
 }
 
-func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) error {
+func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructured, out io.Writer) error {
 	sort.Sort(utils.AlphabeticalOrder(apiObjects))
 
 	dmp := diffmatchpatch.New()
@@ -71,7 +72,7 @@ func (c DiffCmd) Run(apiObjects []*unstructured.Unstructured, out io.Writer) err
 			return fmt.Errorf("Error fetching one of the %s: it does not have a name set", utils.ResourceNameFor(c.Mapper, obj))
 		}
 
-		liveObj, err := client.Get(obj.GetName(), metav1.GetOptions{})
+		liveObj, err := client.Get(ctx, obj.GetName(), metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			log.Debugf("%s doesn't exist on the server", desc)
 			liveObj = nil

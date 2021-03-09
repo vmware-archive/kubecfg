@@ -16,6 +16,7 @@
 package kubecfg
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -40,7 +41,7 @@ type DeleteCmd struct {
 	GracePeriod int64
 }
 
-func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
+func (c DeleteCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructured) error {
 	version, err := utils.FetchVersion(c.Discovery)
 	if err != nil {
 		version = utils.GetDefaultVersion()
@@ -77,7 +78,7 @@ func (c DeleteCmd) Run(apiObjects []*unstructured.Unstructured) error {
 			return err
 		}
 
-		err = client.Delete(obj.GetName(), &deleteOpts)
+		err = client.Delete(ctx, obj.GetName(), deleteOpts)
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("Error deleting %s: %s", desc, err)
 		}

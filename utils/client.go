@@ -27,7 +27,7 @@ import (
 	"sync"
 	"syscall"
 
-	openapi_v2 "github.com/googleapis/gnostic/OpenAPIv2"
+	openapi_v2 "github.com/googleapis/gnostic/openapiv2"
 
 	log "github.com/sirupsen/logrus"
 	errorsutil "k8s.io/apimachinery/pkg/api/errors"
