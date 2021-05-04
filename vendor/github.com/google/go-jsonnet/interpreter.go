@@ -22,6 +22,7 @@ import (
 	"math"
 	"reflect"
 	"sort"
+	"strconv"
 
 	"github.com/google/go-jsonnet/ast"
 	"github.com/google/go-jsonnet/astgen"
@@ -202,14 +203,6 @@ func (s *callStack) getCurrentEnv(ast ast.Node) environment {
 		s.capture(ast.FreeVariables()),
 		s.getSelfBinding(),
 	)
-}
-
-func (s *callStack) getTopEnv() environment {
-	top := s.stack[len(s.stack)-1]
-	if !top.isCall {
-		panic("getTopEnv is allowed only for artifical nodes which are called in new environment")
-	}
-	return top.env
 }
 
 // Build a binding frame containing specified variables.
@@ -476,7 +469,14 @@ func (i *interpreter) evaluate(a ast.Node, tc tailCallStatus) (value, error) {
 		return makeValueNull(), nil
 
 	case *ast.LiteralNumber:
-		return makeValueNumber(node.Value), nil
+		// Since the lexer ensures that OriginalString is of
+		// the right form, this will only fail if the number is
+		// too large to fit in a double.
+		num, err := strconv.ParseFloat(node.OriginalString, 64)
+		if err != nil {
+			return nil, i.Error("overflow", trace)
+		}
+		return makeValueNumber(num), nil
 
 	case *ast.LiteralString:
 		return makeValueString(node.Value), nil
@@ -960,6 +960,7 @@ func (i *interpreter) getNumber(val value, trace traceElement) (*valueNumber, er
 	}
 }
 
+//nolint:unused
 func (i *interpreter) evaluateNumber(pv potentialValue, trace traceElement) (*valueNumber, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {
@@ -990,6 +991,7 @@ func (i *interpreter) evaluateInt(pv potentialValue, trace traceElement) (int, e
 	return i.getInt(v, trace)
 }
 
+//nolint:unused
 func (i *interpreter) getInt64(val value, trace traceElement) (int64, error) {
 	num, err := i.getNumber(val, trace)
 	if err != nil {
@@ -1002,6 +1004,7 @@ func (i *interpreter) getInt64(val value, trace traceElement) (int64, error) {
 	return intNum, nil
 }
 
+//nolint:unused
 func (i *interpreter) evaluateInt64(pv potentialValue, trace traceElement) (int64, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {
@@ -1019,6 +1022,7 @@ func (i *interpreter) getString(val value, trace traceElement) (valueString, err
 	}
 }
 
+//nolint:unused
 func (i *interpreter) evaluateString(pv potentialValue, trace traceElement) (valueString, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {
@@ -1036,6 +1040,7 @@ func (i *interpreter) getBoolean(val value, trace traceElement) (*valueBoolean, 
 	}
 }
 
+//nolint:unused
 func (i *interpreter) evaluateBoolean(pv potentialValue, trace traceElement) (*valueBoolean, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {
@@ -1053,6 +1058,7 @@ func (i *interpreter) getArray(val value, trace traceElement) (*valueArray, erro
 	}
 }
 
+//nolint:unused
 func (i *interpreter) evaluateArray(pv potentialValue, trace traceElement) (*valueArray, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {
@@ -1070,6 +1076,7 @@ func (i *interpreter) getFunction(val value, trace traceElement) (*valueFunction
 	}
 }
 
+//nolint:unused
 func (i *interpreter) evaluateFunction(pv potentialValue, trace traceElement) (*valueFunction, error) {
 	v, err := i.evaluatePV(pv, trace)
 	if err != nil {

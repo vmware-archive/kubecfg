@@ -182,7 +182,11 @@ func builtinLength(i *interpreter, trace traceElement, x value) (value, error) {
 	case valueString:
 		num = x.length()
 	case *valueFunction:
-		num = len(x.Parameters().required)
+		for _, param := range x.parameters() {
+			if param.defaultArg == nil {
+				num++
+			}
+		}
 	default:
 		return nil, i.typeErrorGeneral(x, trace)
 	}
@@ -271,9 +275,7 @@ func builtinFlatMap(i *interpreter, trace traceElement, funcv, arrv value) (valu
 		if err != nil {
 			return nil, err
 		}
-		for _, elem := range returned.elements {
-			elems = append(elems, elem)
-		}
+		elems = append(elems, returned.elements...)
 	}
 	return makeValueArray(elems), nil
 }
@@ -291,13 +293,9 @@ func joinArrays(i *interpreter, trace traceElement, sep *valueArray, arr *valueA
 			continue
 		case *valueArray:
 			if !first {
-				for _, subElem := range sep.elements {
-					result = append(result, subElem)
-				}
+				result = append(result, sep.elements...)
 			}
-			for _, subElem := range v.elements {
-				result = append(result, subElem)
-			}
+			result = append(result, v.elements...)
 		default:
 			return nil, i.typeErrorSpecific(elemValue, &valueArray{}, trace)
 		}
@@ -352,15 +350,15 @@ func builtinReverse(i *interpreter, trace traceElement, arrv value) (value, erro
 		return nil, err
 	}
 
-	lenArr := len(arr.elements)                    // lenx holds the original array length
-	reversed_array := make([]*cachedThunk, lenArr) // creates a slice that refer to a new array of length lenx
+	lenArr := len(arr.elements)                   // lenx holds the original array length
+	reversedArray := make([]*cachedThunk, lenArr) // creates a slice that refer to a new array of length lenx
 
 	for i := 0; i < lenArr; i++ {
 		j := lenArr - (i + 1) // j initially holds (lenx - 1) and decreases to 0 while i initially holds 0 and increase to (lenx - 1)
-		reversed_array[i] = arr.elements[j]
+		reversedArray[i] = arr.elements[j]
 	}
 
-	return makeValueArray(reversed_array), nil
+	return makeValueArray(reversedArray), nil
 }
 
 func builtinFilter(i *interpreter, trace traceElement, funcv, arrv value) (value, error) {
@@ -431,14 +429,6 @@ func (d *sortData) Sort() (err error) {
 	return
 }
 
-func arrayFromThunks(vs []value) *valueArray {
-	thunks := make([]*cachedThunk, len(vs))
-	for i := range vs {
-		thunks[i] = readyThunk(vs[i])
-	}
-	return makeValueArray(thunks)
-}
-
 func builtinSort(i *interpreter, trace traceElement, arguments []value) (value, error) {
 	arrv := arguments[0]
 	keyFv := arguments[1]
@@ -464,7 +454,10 @@ func builtinSort(i *interpreter, trace traceElement, arguments []value) (value, 
 		}
 	}
 
-	data.Sort()
+	err = data.Sort()
+	if err != nil {
+		return nil, err
+	}
 
 	return makeValueArray(data.thunks), nil
 }
@@ -701,8 +694,8 @@ func builtinBase64(i *interpreter, trace traceElement, input value) (value, erro
 			return nil, err
 		}
 
-		runes := []rune(vStr.getGoString())
-		for _, r := range runes {
+		str := vStr.getGoString()
+		for _, r := range str {
 			n := int(r)
 			msg, ok := sanityCheck(n)
 			if !ok {
@@ -710,7 +703,7 @@ func builtinBase64(i *interpreter, trace traceElement, input value) (value, erro
 			}
 		}
 
-		byteArr = []byte(string(vStr.getGoString()))
+		byteArr = []byte(str)
 	case *valueArray:
 		vArr, err := i.getArray(input, trace)
 		if err != nil {
@@ -862,11 +855,11 @@ func liftBitwise(f func(int64, int64) int64) func(*interpreter, traceElement, va
 			return nil, err
 		}
 		if x.value < math.MinInt64 || x.value > math.MaxInt64 {
-			msg := fmt.Sprintf("Bitwise operator argument %v outside of range [%v, %v]", x.value, math.MinInt64, math.MaxInt64)
+			msg := fmt.Sprintf("Bitwise operator argument %v outside of range [%v, %v]", x.value, int64(math.MinInt64), int64(math.MaxInt64))
 			return nil, makeRuntimeError(msg, i.getCurrentStackTrace(trace))
 		}
 		if y.value < math.MinInt64 || y.value > math.MaxInt64 {
-			msg := fmt.Sprintf("Bitwise operator argument %v outside of range [%v, %v]", y.value, math.MinInt64, math.MaxInt64)
+			msg := fmt.Sprintf("Bitwise operator argument %v outside of range [%v, %v]", y.value, int64(math.MinInt64), int64(math.MaxInt64))
 			return nil, makeRuntimeError(msg, i.getCurrentStackTrace(trace))
 		}
 		return makeDoubleCheck(i, trace, float64(f(int64(x.value), int64(y.value))))
@@ -874,8 +867,8 @@ func liftBitwise(f func(int64, int64) int64) func(*interpreter, traceElement, va
 }
 
 // TODO(sbarzowski) negative shifts
-var builtinShiftL = liftBitwise(func(x, y int64) int64 { return x << uint(y) })
-var builtinShiftR = liftBitwise(func(x, y int64) int64 { return x >> uint(y) })
+var builtinShiftL = liftBitwise(func(x, y int64) int64 { return x << uint(y%64) })
+var builtinShiftR = liftBitwise(func(x, y int64) int64 { return x >> uint(y%64) })
 var builtinBitwiseAnd = liftBitwise(func(x, y int64) int64 { return x & y })
 var builtinBitwiseOr = liftBitwise(func(x, y int64) int64 { return x | y })
 var builtinBitwiseXor = liftBitwise(func(x, y int64) int64 { return x ^ y })
@@ -1197,25 +1190,24 @@ type builtin interface {
 	Name() ast.Identifier
 }
 
-func flattenArgs(args callArguments, params parameters, defaults []value) []*cachedThunk {
+func flattenArgs(args callArguments, params []namedParameter, defaults []value) []*cachedThunk {
 	positions := make(map[ast.Identifier]int)
-	for i := 0; i < len(params.required); i++ {
-		positions[params.required[i]] = i
-	}
-	for i := 0; i < len(params.optional); i++ {
-		positions[params.optional[i].name] = i + len(params.required)
+	for i, param := range params {
+		positions[param.name] = i
 	}
 
-	flatArgs := make([]*cachedThunk, len(params.required)+len(params.optional))
+	flatArgs := make([]*cachedThunk, len(params))
 
+	// Bind positional arguments
 	copy(flatArgs, args.positional)
+	// Bind named arguments
 	for _, arg := range args.named {
 		flatArgs[positions[arg.name]] = arg.pv
 	}
-	for i := 0; i < len(params.optional); i++ {
-		pos := len(params.required) + i
-		if flatArgs[pos] == nil {
-			flatArgs[pos] = readyThunk(defaults[i])
+	// Bind defaults for unsatisfied named parameters
+	for i := range params {
+		if flatArgs[i] == nil {
+			flatArgs[i] = readyThunk(defaults[i])
 		}
 	}
 	return flatArgs
@@ -1224,9 +1216,9 @@ func flattenArgs(args callArguments, params parameters, defaults []value) []*cac
 type unaryBuiltinFunc func(*interpreter, traceElement, value) (value, error)
 
 type unaryBuiltin struct {
-	name       ast.Identifier
-	function   unaryBuiltinFunc
-	parameters ast.Identifiers
+	name     ast.Identifier
+	function unaryBuiltinFunc
+	params   ast.Identifiers
 }
 
 func getBuiltinTrace(trace traceElement, name ast.Identifier) traceElement {
@@ -1235,7 +1227,7 @@ func getBuiltinTrace(trace traceElement, name ast.Identifier) traceElement {
 }
 
 func (b *unaryBuiltin) evalCall(args callArguments, i *interpreter, trace traceElement) (value, error) {
-	flatArgs := flattenArgs(args, b.Parameters(), []value{})
+	flatArgs := flattenArgs(args, b.parameters(), []value{})
 	builtinTrace := getBuiltinTrace(trace, b.name)
 	x, err := flatArgs[0].getValue(i, trace)
 	if err != nil {
@@ -1244,8 +1236,12 @@ func (b *unaryBuiltin) evalCall(args callArguments, i *interpreter, trace traceE
 	return b.function(i, builtinTrace, x)
 }
 
-func (b *unaryBuiltin) Parameters() parameters {
-	return parameters{required: b.parameters}
+func (b *unaryBuiltin) parameters() []namedParameter {
+	ret := make([]namedParameter, len(b.params))
+	for i := range ret {
+		ret[i].name = b.params[i]
+	}
+	return ret
 }
 
 func (b *unaryBuiltin) Name() ast.Identifier {
@@ -1255,13 +1251,13 @@ func (b *unaryBuiltin) Name() ast.Identifier {
 type binaryBuiltinFunc func(*interpreter, traceElement, value, value) (value, error)
 
 type binaryBuiltin struct {
-	name       ast.Identifier
-	function   binaryBuiltinFunc
-	parameters ast.Identifiers
+	name     ast.Identifier
+	function binaryBuiltinFunc
+	params   ast.Identifiers
 }
 
 func (b *binaryBuiltin) evalCall(args callArguments, i *interpreter, trace traceElement) (value, error) {
-	flatArgs := flattenArgs(args, b.Parameters(), []value{})
+	flatArgs := flattenArgs(args, b.parameters(), []value{})
 	builtinTrace := getBuiltinTrace(trace, b.name)
 	x, err := flatArgs[0].getValue(i, trace)
 	if err != nil {
@@ -1274,8 +1270,12 @@ func (b *binaryBuiltin) evalCall(args callArguments, i *interpreter, trace trace
 	return b.function(i, builtinTrace, x, y)
 }
 
-func (b *binaryBuiltin) Parameters() parameters {
-	return parameters{required: b.parameters}
+func (b *binaryBuiltin) parameters() []namedParameter {
+	ret := make([]namedParameter, len(b.params))
+	for i := range ret {
+		ret[i].name = b.params[i]
+	}
+	return ret
 }
 
 func (b *binaryBuiltin) Name() ast.Identifier {
@@ -1285,13 +1285,13 @@ func (b *binaryBuiltin) Name() ast.Identifier {
 type ternaryBuiltinFunc func(*interpreter, traceElement, value, value, value) (value, error)
 
 type ternaryBuiltin struct {
-	name       ast.Identifier
-	function   ternaryBuiltinFunc
-	parameters ast.Identifiers
+	name     ast.Identifier
+	function ternaryBuiltinFunc
+	params   ast.Identifiers
 }
 
 func (b *ternaryBuiltin) evalCall(args callArguments, i *interpreter, trace traceElement) (value, error) {
-	flatArgs := flattenArgs(args, b.Parameters(), []value{})
+	flatArgs := flattenArgs(args, b.parameters(), []value{})
 	builtinTrace := getBuiltinTrace(trace, b.name)
 	x, err := flatArgs[0].getValue(i, trace)
 	if err != nil {
@@ -1308,8 +1308,12 @@ func (b *ternaryBuiltin) evalCall(args callArguments, i *interpreter, trace trac
 	return b.function(i, builtinTrace, x, y, z)
 }
 
-func (b *ternaryBuiltin) Parameters() parameters {
-	return parameters{required: b.parameters}
+func (b *ternaryBuiltin) parameters() []namedParameter {
+	ret := make([]namedParameter, len(b.params))
+	for i := range ret {
+		ret[i].name = b.params[i]
+	}
+	return ret
 }
 
 func (b *ternaryBuiltin) Name() ast.Identifier {
@@ -1318,25 +1322,44 @@ func (b *ternaryBuiltin) Name() ast.Identifier {
 
 type generalBuiltinFunc func(*interpreter, traceElement, []value) (value, error)
 
-// generalBuiltin covers cases that other builtin structures do not,
-// in particular it can have any number of parameters. It can also
-// have optional parameters.
-type generalBuiltin struct {
-	name     ast.Identifier
-	required ast.Identifiers
-	optional ast.Identifiers
+type generalBuiltinParameter struct {
+	name ast.Identifier
 	// Note that the defaults are passed as values rather than AST nodes like in Parameters.
 	// This spares us unnecessary evaluation.
-	defaultValues []value
-	function      generalBuiltinFunc
+	defaultValue value
 }
 
-func (b *generalBuiltin) Parameters() parameters {
-	optional := make([]namedParameter, len(b.optional))
-	for i := range optional {
-		optional[i] = namedParameter{name: b.optional[i]}
+// generalBuiltin covers cases that other builtin structures do not,
+// in particular it can have any number of parameters. It can also
+// have optional parameters.  The optional ones have non-nil defaultValues
+// at the same index.
+type generalBuiltin struct {
+	name     ast.Identifier
+	params   []generalBuiltinParameter
+	function generalBuiltinFunc
+}
+
+func (b *generalBuiltin) parameters() []namedParameter {
+	ret := make([]namedParameter, len(b.params))
+	for i := range ret {
+		ret[i].name = b.params[i].name
+		if b.params[i].defaultValue != nil {
+			// This is not actually used because the defaultValue is used instead.
+			// The only reason we don't leave it nil is because the checkArguments
+			// function uses the non-nil status to indicate that the parameter
+			// is optional.
+			ret[i].defaultArg = &ast.LiteralNull{}
+		}
 	}
-	return parameters{required: b.required, optional: optional}
+	return ret
+}
+
+func (b *generalBuiltin) defaultValues() []value {
+	ret := make([]value, len(b.params))
+	for i := range ret {
+		ret[i] = b.params[i].defaultValue
+	}
+	return ret
 }
 
 func (b *generalBuiltin) Name() ast.Identifier {
@@ -1344,7 +1367,7 @@ func (b *generalBuiltin) Name() ast.Identifier {
 }
 
 func (b *generalBuiltin) evalCall(args callArguments, i *interpreter, trace traceElement) (value, error) {
-	flatArgs := flattenArgs(args, b.Parameters(), b.defaultValues)
+	flatArgs := flattenArgs(args, b.parameters(), b.defaultValues())
 	builtinTrace := getBuiltinTrace(trace, b.name)
 	values := make([]value, len(flatArgs))
 	for j := 0; j < len(values); j++ {
@@ -1359,38 +1382,38 @@ func (b *generalBuiltin) evalCall(args callArguments, i *interpreter, trace trac
 
 // End of builtin utils
 
-var builtinID = &unaryBuiltin{name: "id", function: builtinIdentity, parameters: ast.Identifiers{"x"}}
+var builtinID = &unaryBuiltin{name: "id", function: builtinIdentity, params: ast.Identifiers{"x"}}
 var functionID = &valueFunction{ec: builtinID}
 
 var bopBuiltins = []*binaryBuiltin{
 	// Note that % and `in` are desugared instead of being handled here
-	ast.BopMult: &binaryBuiltin{name: "operator*", function: builtinMult, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopDiv:  &binaryBuiltin{name: "operator/", function: builtinDiv, parameters: ast.Identifiers{"x", "y"}},
+	ast.BopMult: &binaryBuiltin{name: "operator*", function: builtinMult, params: ast.Identifiers{"x", "y"}},
+	ast.BopDiv:  &binaryBuiltin{name: "operator/", function: builtinDiv, params: ast.Identifiers{"x", "y"}},
 
-	ast.BopPlus:  &binaryBuiltin{name: "operator+", function: builtinPlus, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopMinus: &binaryBuiltin{name: "operator-", function: builtinMinus, parameters: ast.Identifiers{"x", "y"}},
+	ast.BopPlus:  &binaryBuiltin{name: "operator+", function: builtinPlus, params: ast.Identifiers{"x", "y"}},
+	ast.BopMinus: &binaryBuiltin{name: "operator-", function: builtinMinus, params: ast.Identifiers{"x", "y"}},
 
-	ast.BopShiftL: &binaryBuiltin{name: "operator<<", function: builtinShiftL, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopShiftR: &binaryBuiltin{name: "operator>>", function: builtinShiftR, parameters: ast.Identifiers{"x", "y"}},
+	ast.BopShiftL: &binaryBuiltin{name: "operator<<", function: builtinShiftL, params: ast.Identifiers{"x", "y"}},
+	ast.BopShiftR: &binaryBuiltin{name: "operator>>", function: builtinShiftR, params: ast.Identifiers{"x", "y"}},
 
-	ast.BopGreater:   &binaryBuiltin{name: "operator>", function: builtinGreater, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopGreaterEq: &binaryBuiltin{name: "operator>=", function: builtinGreaterEq, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopLess:      &binaryBuiltin{name: "operator<,", function: builtinLess, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopLessEq:    &binaryBuiltin{name: "operator<=", function: builtinLessEq, parameters: ast.Identifiers{"x", "y"}},
+	ast.BopGreater:   &binaryBuiltin{name: "operator>", function: builtinGreater, params: ast.Identifiers{"x", "y"}},
+	ast.BopGreaterEq: &binaryBuiltin{name: "operator>=", function: builtinGreaterEq, params: ast.Identifiers{"x", "y"}},
+	ast.BopLess:      &binaryBuiltin{name: "operator<,", function: builtinLess, params: ast.Identifiers{"x", "y"}},
+	ast.BopLessEq:    &binaryBuiltin{name: "operator<=", function: builtinLessEq, params: ast.Identifiers{"x", "y"}},
 
-	ast.BopManifestEqual:   &binaryBuiltin{name: "operator==", function: builtinEquals, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopManifestUnequal: &binaryBuiltin{name: "operator!=", function: builtinNotEquals, parameters: ast.Identifiers{"x", "y"}}, // Special case
+	ast.BopManifestEqual:   &binaryBuiltin{name: "operator==", function: builtinEquals, params: ast.Identifiers{"x", "y"}},
+	ast.BopManifestUnequal: &binaryBuiltin{name: "operator!=", function: builtinNotEquals, params: ast.Identifiers{"x", "y"}}, // Special case
 
-	ast.BopBitwiseAnd: &binaryBuiltin{name: "operator&", function: builtinBitwiseAnd, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopBitwiseXor: &binaryBuiltin{name: "operator^", function: builtinBitwiseXor, parameters: ast.Identifiers{"x", "y"}},
-	ast.BopBitwiseOr:  &binaryBuiltin{name: "operator|", function: builtinBitwiseOr, parameters: ast.Identifiers{"x", "y"}},
+	ast.BopBitwiseAnd: &binaryBuiltin{name: "operator&", function: builtinBitwiseAnd, params: ast.Identifiers{"x", "y"}},
+	ast.BopBitwiseXor: &binaryBuiltin{name: "operator^", function: builtinBitwiseXor, params: ast.Identifiers{"x", "y"}},
+	ast.BopBitwiseOr:  &binaryBuiltin{name: "operator|", function: builtinBitwiseOr, params: ast.Identifiers{"x", "y"}},
 }
 
 var uopBuiltins = []*unaryBuiltin{
-	ast.UopNot:        &unaryBuiltin{name: "operator!", function: builtinNegation, parameters: ast.Identifiers{"x"}},
-	ast.UopBitwiseNot: &unaryBuiltin{name: "operator~", function: builtinBitNeg, parameters: ast.Identifiers{"x"}},
-	ast.UopPlus:       &unaryBuiltin{name: "operator+ (unary)", function: builtinUnaryPlus, parameters: ast.Identifiers{"x"}},
-	ast.UopMinus:      &unaryBuiltin{name: "operator- (unary)", function: builtinUnaryMinus, parameters: ast.Identifiers{"x"}},
+	ast.UopNot:        &unaryBuiltin{name: "operator!", function: builtinNegation, params: ast.Identifiers{"x"}},
+	ast.UopBitwiseNot: &unaryBuiltin{name: "operator~", function: builtinBitNeg, params: ast.Identifiers{"x"}},
+	ast.UopPlus:       &unaryBuiltin{name: "operator+ (unary)", function: builtinUnaryPlus, params: ast.Identifiers{"x"}},
+	ast.UopMinus:      &unaryBuiltin{name: "operator- (unary)", function: builtinUnaryMinus, params: ast.Identifiers{"x"}},
 }
 
 func buildBuiltinMap(builtins []builtin) map[string]evalCallable {
@@ -1403,51 +1426,51 @@ func buildBuiltinMap(builtins []builtin) map[string]evalCallable {
 
 var funcBuiltins = buildBuiltinMap([]builtin{
 	builtinID,
-	&unaryBuiltin{name: "extVar", function: builtinExtVar, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "length", function: builtinLength, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "toString", function: builtinToString, parameters: ast.Identifiers{"a"}},
-	&binaryBuiltin{name: "trace", function: builtinTrace, parameters: ast.Identifiers{"str", "rest"}},
-	&binaryBuiltin{name: "makeArray", function: builtinMakeArray, parameters: ast.Identifiers{"sz", "func"}},
-	&binaryBuiltin{name: "flatMap", function: builtinFlatMap, parameters: ast.Identifiers{"func", "arr"}},
-	&binaryBuiltin{name: "join", function: builtinJoin, parameters: ast.Identifiers{"sep", "arr"}},
-	&unaryBuiltin{name: "reverse", function: builtinReverse, parameters: ast.Identifiers{"arr"}},
-	&binaryBuiltin{name: "filter", function: builtinFilter, parameters: ast.Identifiers{"func", "arr"}},
-	&binaryBuiltin{name: "range", function: builtinRange, parameters: ast.Identifiers{"from", "to"}},
-	&binaryBuiltin{name: "primitiveEquals", function: primitiveEquals, parameters: ast.Identifiers{"x", "y"}},
-	&binaryBuiltin{name: "equals", function: builtinEquals, parameters: ast.Identifiers{"x", "y"}},
-	&binaryBuiltin{name: "objectFieldsEx", function: builtinObjectFieldsEx, parameters: ast.Identifiers{"obj", "hidden"}},
-	&ternaryBuiltin{name: "objectHasEx", function: builtinObjectHasEx, parameters: ast.Identifiers{"obj", "fname", "hidden"}},
-	&unaryBuiltin{name: "type", function: builtinType, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "char", function: builtinChar, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "codepoint", function: builtinCodepoint, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "ceil", function: builtinCeil, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "floor", function: builtinFloor, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "sqrt", function: builtinSqrt, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "sin", function: builtinSin, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "cos", function: builtinCos, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "tan", function: builtinTan, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "asin", function: builtinAsin, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "acos", function: builtinAcos, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "atan", function: builtinAtan, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "log", function: builtinLog, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "exp", function: builtinExp, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "mantissa", function: builtinMantissa, parameters: ast.Identifiers{"x"}},
-	&unaryBuiltin{name: "exponent", function: builtinExponent, parameters: ast.Identifiers{"x"}},
-	&binaryBuiltin{name: "pow", function: builtinPow, parameters: ast.Identifiers{"base", "exp"}},
-	&binaryBuiltin{name: "modulo", function: builtinModulo, parameters: ast.Identifiers{"x", "y"}},
-	&unaryBuiltin{name: "md5", function: builtinMd5, parameters: ast.Identifiers{"x"}},
-	&ternaryBuiltin{name: "substr", function: builtinSubstr, parameters: ast.Identifiers{"str", "from", "len"}},
-	&ternaryBuiltin{name: "splitLimit", function: builtinSplitLimit, parameters: ast.Identifiers{"str", "c", "maxsplits"}},
-	&ternaryBuiltin{name: "strReplace", function: builtinStrReplace, parameters: ast.Identifiers{"str", "from", "to"}},
-	&unaryBuiltin{name: "base64Decode", function: builtinBase64Decode, parameters: ast.Identifiers{"str"}},
-	&unaryBuiltin{name: "base64DecodeBytes", function: builtinBase64DecodeBytes, parameters: ast.Identifiers{"str"}},
-	&unaryBuiltin{name: "parseJson", function: builtinParseJSON, parameters: ast.Identifiers{"str"}},
-	&unaryBuiltin{name: "base64", function: builtinBase64, parameters: ast.Identifiers{"input"}},
-	&unaryBuiltin{name: "encodeUTF8", function: builtinEncodeUTF8, parameters: ast.Identifiers{"str"}},
-	&unaryBuiltin{name: "decodeUTF8", function: builtinDecodeUTF8, parameters: ast.Identifiers{"arr"}},
-	&generalBuiltin{name: "sort", function: builtinSort, required: ast.Identifiers{"arr"}, optional: ast.Identifiers{"keyF"}, defaultValues: []value{functionID}},
-	&unaryBuiltin{name: "native", function: builtinNative, parameters: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "extVar", function: builtinExtVar, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "length", function: builtinLength, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "toString", function: builtinToString, params: ast.Identifiers{"a"}},
+	&binaryBuiltin{name: "trace", function: builtinTrace, params: ast.Identifiers{"str", "rest"}},
+	&binaryBuiltin{name: "makeArray", function: builtinMakeArray, params: ast.Identifiers{"sz", "func"}},
+	&binaryBuiltin{name: "flatMap", function: builtinFlatMap, params: ast.Identifiers{"func", "arr"}},
+	&binaryBuiltin{name: "join", function: builtinJoin, params: ast.Identifiers{"sep", "arr"}},
+	&unaryBuiltin{name: "reverse", function: builtinReverse, params: ast.Identifiers{"arr"}},
+	&binaryBuiltin{name: "filter", function: builtinFilter, params: ast.Identifiers{"func", "arr"}},
+	&binaryBuiltin{name: "range", function: builtinRange, params: ast.Identifiers{"from", "to"}},
+	&binaryBuiltin{name: "primitiveEquals", function: primitiveEquals, params: ast.Identifiers{"x", "y"}},
+	&binaryBuiltin{name: "equals", function: builtinEquals, params: ast.Identifiers{"x", "y"}},
+	&binaryBuiltin{name: "objectFieldsEx", function: builtinObjectFieldsEx, params: ast.Identifiers{"obj", "hidden"}},
+	&ternaryBuiltin{name: "objectHasEx", function: builtinObjectHasEx, params: ast.Identifiers{"obj", "fname", "hidden"}},
+	&unaryBuiltin{name: "type", function: builtinType, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "char", function: builtinChar, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "codepoint", function: builtinCodepoint, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "ceil", function: builtinCeil, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "floor", function: builtinFloor, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "sqrt", function: builtinSqrt, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "sin", function: builtinSin, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "cos", function: builtinCos, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "tan", function: builtinTan, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "asin", function: builtinAsin, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "acos", function: builtinAcos, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "atan", function: builtinAtan, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "log", function: builtinLog, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "exp", function: builtinExp, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "mantissa", function: builtinMantissa, params: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "exponent", function: builtinExponent, params: ast.Identifiers{"x"}},
+	&binaryBuiltin{name: "pow", function: builtinPow, params: ast.Identifiers{"base", "exp"}},
+	&binaryBuiltin{name: "modulo", function: builtinModulo, params: ast.Identifiers{"x", "y"}},
+	&unaryBuiltin{name: "md5", function: builtinMd5, params: ast.Identifiers{"x"}},
+	&ternaryBuiltin{name: "substr", function: builtinSubstr, params: ast.Identifiers{"str", "from", "len"}},
+	&ternaryBuiltin{name: "splitLimit", function: builtinSplitLimit, params: ast.Identifiers{"str", "c", "maxsplits"}},
+	&ternaryBuiltin{name: "strReplace", function: builtinStrReplace, params: ast.Identifiers{"str", "from", "to"}},
+	&unaryBuiltin{name: "base64Decode", function: builtinBase64Decode, params: ast.Identifiers{"str"}},
+	&unaryBuiltin{name: "base64DecodeBytes", function: builtinBase64DecodeBytes, params: ast.Identifiers{"str"}},
+	&unaryBuiltin{name: "parseJson", function: builtinParseJSON, params: ast.Identifiers{"str"}},
+	&unaryBuiltin{name: "base64", function: builtinBase64, params: ast.Identifiers{"input"}},
+	&unaryBuiltin{name: "encodeUTF8", function: builtinEncodeUTF8, params: ast.Identifiers{"str"}},
+	&unaryBuiltin{name: "decodeUTF8", function: builtinDecodeUTF8, params: ast.Identifiers{"arr"}},
+	&generalBuiltin{name: "sort", function: builtinSort, params: []generalBuiltinParameter{{name: "arr"}, {name: "keyF", defaultValue: functionID}}},
+	&unaryBuiltin{name: "native", function: builtinNative, params: ast.Identifiers{"x"}},
 
 	// internal
-	&unaryBuiltin{name: "$objectFlatMerge", function: builtinUglyObjectFlatMerge, parameters: ast.Identifiers{"x"}},
+	&unaryBuiltin{name: "$objectFlatMerge", function: builtinUglyObjectFlatMerge, params: ast.Identifiers{"x"}},
 })

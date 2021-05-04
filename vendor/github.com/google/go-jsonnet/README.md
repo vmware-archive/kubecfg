@@ -19,12 +19,19 @@ This code is known to work on Go 1.8 and above. We recommend always using the ne
 go get github.com/google/go-jsonnet/cmd/jsonnet
 ```
 
+It's also available on Homebrew:
+
+```
+brew install go-jsonnet
+```
+
 ## Build instructions (go 1.11+)
 
 ```bash
 git clone git@github.com:google/go-jsonnet.git
 cd go-jsonnet
 go build ./cmd/jsonnet
+go build ./cmd/jsonnetfmt
 ```
 To build with [Bazel](https://bazel.build/) instead:
 ```bash
@@ -33,6 +40,7 @@ cd go-jsonnet
 git submodule init
 git submodule update
 bazel build //cmd/jsonnet
+bazel build //cmd/jsonnetfmt
 ```
 The resulting _jsonnet_ program will then be available at a platform-specific path, such as _bazel-bin/cmd/jsonnet/darwin_amd64_stripped/jsonnet_ for macOS.
 
