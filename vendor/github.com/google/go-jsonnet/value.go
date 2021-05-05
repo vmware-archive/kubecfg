@@ -313,9 +313,7 @@ func makeValueArray(elements []*cachedThunk) *valueArray {
 		arrayElems = elements
 	} else {
 		arrayElems = make([]*cachedThunk, len(elements))
-		for i := range elements {
-			arrayElems[i] = elements[i]
-		}
+		copy(arrayElems, elements)
 	}
 	return &valueArray{
 		elements: arrayElems,
@@ -324,12 +322,8 @@ func makeValueArray(elements []*cachedThunk) *valueArray {
 
 func concatArrays(a, b *valueArray) *valueArray {
 	result := make([]*cachedThunk, 0, len(a.elements)+len(b.elements))
-	for _, r := range a.elements {
-		result = append(result, r)
-	}
-	for _, r := range b.elements {
-		result = append(result, r)
-	}
+	result = append(result, a.elements...)
+	result = append(result, b.elements...)
 	return &valueArray{elements: result}
 }
 
@@ -348,48 +342,41 @@ type valueFunction struct {
 // TODO(sbarzowski) better name?
 type evalCallable interface {
 	evalCall(args callArguments, i *interpreter, trace traceElement) (value, error)
-	Parameters() parameters
+	parameters() []namedParameter
 }
 
 func (f *valueFunction) call(i *interpreter, trace traceElement, args callArguments) (value, error) {
-	err := checkArguments(i, trace, args, f.Parameters())
+	err := checkArguments(i, trace, args, f.parameters())
 	if err != nil {
 		return nil, err
 	}
 	return f.ec.evalCall(args, i, trace)
 }
 
-func (f *valueFunction) Parameters() parameters {
-	return f.ec.Parameters()
+func (f *valueFunction) parameters() []namedParameter {
+	return f.ec.parameters()
 }
 
-func checkArguments(i *interpreter, trace traceElement, args callArguments, params parameters) error {
-	received := make(map[ast.Identifier]bool)
-	accepted := make(map[ast.Identifier]bool)
+func checkArguments(i *interpreter, trace traceElement, args callArguments, params []namedParameter) error {
 
 	numPassed := len(args.positional)
-	numExpected := len(params.required) + len(params.optional)
+	maxExpected := len(params)
 
-	if numPassed > numExpected {
-		return i.Error(fmt.Sprintf("function expected %v positional argument(s), but got %v", numExpected, numPassed), trace)
+	if numPassed > maxExpected {
+		return i.Error(fmt.Sprintf("function expected %v positional argument(s), but got %v", maxExpected, numPassed), trace)
 	}
 
-	for _, param := range params.required {
-		accepted[param] = true
-	}
-
-	for _, param := range params.optional {
+	// Parameter names the function will accept.
+	accepted := make(map[ast.Identifier]bool)
+	for _, param := range params {
 		accepted[param.name] = true
 	}
 
+	// Parameter names the call will bind.
+	received := make(map[ast.Identifier]bool)
 	for i := range args.positional {
-		if i < len(params.required) {
-			received[params.required[i]] = true
-		} else {
-			received[params.optional[i-len(params.required)].name] = true
-		}
+		received[params[i].name] = true
 	}
-
 	for _, arg := range args.named {
 		if _, present := received[arg.name]; present {
 			return i.Error(fmt.Sprintf("Argument %v already provided", arg.name), trace)
@@ -400,9 +387,9 @@ func checkArguments(i *interpreter, trace traceElement, args callArguments, para
 		received[arg.name] = true
 	}
 
-	for _, param := range params.required {
-		if _, present := received[param]; !present {
-			return i.Error(fmt.Sprintf("Missing argument: %v", param), trace)
+	for _, param := range params {
+		if _, present := received[param.name]; !present && param.defaultArg == nil {
+			return i.Error(fmt.Sprintf("Missing argument: %v", param.name), trace)
 		}
 	}
 
@@ -413,20 +400,9 @@ func (f *valueFunction) getType() *valueType {
 	return functionType
 }
 
-// parameters represents required position and optional named parameters for a
-// function definition.
-type parameters struct {
-	required ast.Identifiers
-	optional []namedParameter
-}
-
 type namedParameter struct {
 	name       ast.Identifier
 	defaultArg ast.Node
-}
-
-type potentialValueInEnv interface {
-	inEnv(env *environment) *cachedThunk
 }
 
 type callArguments struct {

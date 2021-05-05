@@ -9,14 +9,14 @@ require (
 	github.com/go-openapi/spec v0.19.7 // indirect
 	github.com/go-openapi/swag v0.19.8 // indirect
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-jsonnet v0.15.0
+	github.com/google/go-jsonnet v0.16.0
 	github.com/googleapis/gnostic v0.5.3
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
 	github.com/mattn/go-isatty v0.0.11
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.0
-	github.com/sergi/go-diff v1.0.0
+	github.com/sergi/go-diff v1.1.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
