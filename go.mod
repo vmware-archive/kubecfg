@@ -24,7 +24,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	google.golang.org/grpc v1.28.1 // indirect
-	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.19.3
 	k8s.io/apimachinery v0.19.3
@@ -35,3 +35,5 @@ require (
 )
 
 go 1.13
+
+replace gopkg.in/yaml.v2 => github.com/mkmik/yaml v0.0.0-20210505221935-5a0cbc1c4094
