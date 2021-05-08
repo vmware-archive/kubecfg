@@ -51,7 +51,8 @@ type DiffCmd struct {
 	DefaultNamespace string
 	OmitSecrets      bool
 
-	DiffStrategy string
+	DiffStrategy  string
+	NoErrorOnDiff bool
 }
 
 func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructured, out io.Writer) error {
@@ -113,7 +114,7 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 		}
 	}
 
-	if diffFound {
+	if diffFound && !c.NoErrorOnDiff {
 		return ErrDiffFound
 	}
 	return nil

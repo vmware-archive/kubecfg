@@ -22,12 +22,14 @@ import (
 )
 
 const (
-	flagDiffStrategy = "diff-strategy"
-	flagOmitSecrets  = "omit-secrets"
+	flagDiffStrategy  = "diff-strategy"
+	flagNoErrorOnDiff = "no-error-on-diff"
+	flagOmitSecrets   = "omit-secrets"
 )
 
 func init() {
 	diffCmd.PersistentFlags().String(flagDiffStrategy, "all", "Diff strategy, all or subset.")
+	diffCmd.PersistentFlags().Bool(flagNoErrorOnDiff, false, "don't exit with error if there are differences")
 	diffCmd.PersistentFlags().Bool(flagOmitSecrets, false, "hide secret details when showing diff")
 	RootCmd.AddCommand(diffCmd)
 }
@@ -43,6 +45,11 @@ var diffCmd = &cobra.Command{
 		c := kubecfg.DiffCmd{}
 
 		c.DiffStrategy, err = flags.GetString(flagDiffStrategy)
+		if err != nil {
+			return err
+		}
+
+		c.NoErrorOnDiff, err = flags.GetBool(flagNoErrorOnDiff)
 		if err != nil {
 			return err
 		}
