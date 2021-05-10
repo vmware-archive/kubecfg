@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	v1 "k8s.io/api/core/v1"
 	"os"
 	"regexp"
 	"sort"
@@ -88,12 +89,7 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 			continue
 		}
 
-		liveObjObject := liveObj.Object
-		if c.DiffStrategy == "subset" {
-			liveObjObject = removeMapFields(obj.Object, liveObjObject)
-		}
-
-		liveObjText, _ := json.MarshalIndent(liveObjObject, "", "  ")
+		liveObjText, _ := json.MarshalIndent(c.getLiveObjObject(obj, liveObj), "", "  ")
 		objText, _ := json.MarshalIndent(obj.Object, "", "  ")
 
 		liveObjTextLines, objTextLines, lines := dmp.DiffLinesToChars(string(liveObjText), string(objText))
@@ -117,6 +113,19 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 		return ErrDiffFound
 	}
 	return nil
+}
+
+func (c DiffCmd) getLiveObjObject(obj *unstructured.Unstructured, liveObj *unstructured.Unstructured) map[string]interface{} {
+	var liveObjObject map[string]interface{}
+	if c.DiffStrategy == "subset" {
+		liveObjObject = removeMapFields(obj.Object, liveObj.Object)
+	} else if c.DiffStrategy == "last-applied" {
+		lastAppliedText := liveObj.GetAnnotations()[v1.LastAppliedConfigAnnotation]
+		json.Unmarshal([]byte(lastAppliedText), &liveObjObject)
+	} else {
+		liveObjObject = liveObj.Object
+	}
+	return liveObjObject
 }
 
 // Formats the supplied Diff as a unified-diff-like text with infinite context and optionally colorizes it.

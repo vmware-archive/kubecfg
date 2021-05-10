@@ -16,10 +16,83 @@
 package kubecfg
 
 import (
-	"testing"
-
+	"encoding/json"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"testing"
 )
+
+func TestLastAppliedStrategy(t *testing.T) {
+
+	var liveMap map[string]interface{}
+	var expectedMap map[string]interface{}
+
+	c := DiffCmd{}
+	c.DiffStrategy = "last-applied"
+
+	liveText :=
+		`{
+           "apiVersion": "v1",
+           "kind": "Service",
+           "metadata": {
+             "name": "foo",
+             "namespace": "default",
+             "resourceVersion": "288527730",
+             "selfLink": "/api/v1/namespaces/default/services/foo",
+             "uid": "687c86fe-12ec-45d1-a4e8-61db473e2d01",
+             "creationTimestamp": "2021-04-11T13:38:06Z",
+             "annotations":  {
+               "testKey": "testValue",
+               "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"annotations\":{\"testKey\": \"testValue\"},\"name\":\"foo\",\"namespace\":\"default\"}, \"spec\":{\"ports\":[{\"name\":\"http\",\"port\":8080}],\"selector\":{\"app\":\"foo\"}}}"
+             }
+           },
+           "spec": {
+             "sessionAffinity": "None",
+             "type": "ClusterIP",
+             "selector": {
+               "app": "foo"
+             },
+             "ports": [
+               {
+                 "name": "http",
+                 "port": 8080,
+                 "protocol": "TCP",
+                 "targetPort": 8080
+               }
+             ]
+           },
+           "status": {
+             "loadBalancer": {}
+           }
+         }`
+	json.Unmarshal([]byte(liveText), &liveMap)
+
+	expectedText :=
+		`{
+           "apiVersion": "v1",
+           "kind": "Service",
+           "metadata": {
+             "name": "foo",
+             "namespace": "default",
+             "annotations":  {
+               "testKey": "testValue"
+             }
+           },
+           "spec": {
+             "selector": {
+               "app": "foo"
+             },
+             "ports": [
+               {
+                 "name": "http",
+                 "port": 8080
+               }
+             ]
+           }
+         }`
+	json.Unmarshal([]byte(expectedText), &expectedMap)
+	require.Equal(t, expectedMap, c.getLiveObjObject(nil, &unstructured.Unstructured{Object: liveMap}))
+}
 
 func TestRemoveListFields(t *testing.T) {
 	for _, tc := range []struct {
