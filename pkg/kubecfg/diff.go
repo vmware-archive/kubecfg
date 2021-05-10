@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	v1 "k8s.io/api/core/v1"
 	"os"
 	"regexp"
 	"sort"
@@ -89,7 +88,11 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 			continue
 		}
 
-		liveObjText, _ := json.MarshalIndent(c.getLiveObjObject(obj, liveObj), "", "  ")
+		liveObjMap, err := c.getLiveObjObject(obj, liveObj)
+		if err != nil {
+			return err
+		}
+		liveObjText, _ := json.MarshalIndent(liveObjMap, "", "  ")
 		objText, _ := json.MarshalIndent(obj.Object, "", "  ")
 
 		liveObjTextLines, objTextLines, lines := dmp.DiffLinesToChars(string(liveObjText), string(objText))
@@ -115,17 +118,20 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 	return nil
 }
 
-func (c DiffCmd) getLiveObjObject(obj *unstructured.Unstructured, liveObj *unstructured.Unstructured) map[string]interface{} {
+func (c DiffCmd) getLiveObjObject(obj *unstructured.Unstructured, liveObj *unstructured.Unstructured) (map[string]interface{}, error) {
 	var liveObjObject map[string]interface{}
 	if c.DiffStrategy == "subset" {
 		liveObjObject = removeMapFields(obj.Object, liveObj.Object)
 	} else if c.DiffStrategy == "last-applied" {
-		lastAppliedText := liveObj.GetAnnotations()[v1.LastAppliedConfigAnnotation]
-		json.Unmarshal([]byte(lastAppliedText), &liveObjObject)
+		var err error
+		liveObjObject, err = origObject(liveObj)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		liveObjObject = liveObj.Object
 	}
-	return liveObjObject
+	return liveObjObject, nil
 }
 
 // Formats the supplied Diff as a unified-diff-like text with infinite context and optionally colorizes it.
