@@ -17,9 +17,10 @@ package kubecfg
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"testing"
 )
 
 func TestLastAppliedStrategy(t *testing.T) {
@@ -91,7 +92,91 @@ func TestLastAppliedStrategy(t *testing.T) {
            }
          }`
 	json.Unmarshal([]byte(expectedText), &expectedMap)
-	require.Equal(t, expectedMap, c.getLiveObjObject(nil, &unstructured.Unstructured{Object: liveMap}))
+	liveObj, err := c.getLiveObjObject(nil, &unstructured.Unstructured{Object: liveMap})
+	if err != nil {
+		t.Error(err)
+	}
+	require.Equal(t, expectedMap, liveObj)
+}
+
+func TestLastAppliedStrategyKubecfgAnnotation(t *testing.T) {
+
+	var liveMap map[string]interface{}
+	var expectedMap map[string]interface{}
+
+	c := DiffCmd{}
+	c.DiffStrategy = "last-applied"
+
+	liveText :=
+		`{
+           "apiVersion": "v1",
+           "kind": "Service",
+           "metadata": {
+             "name": "foo",
+             "namespace": "default",
+             "resourceVersion": "288527730",
+             "selfLink": "/api/v1/namespaces/default/services/foo",
+             "uid": "687c86fe-12ec-45d1-a4e8-61db473e2d01",
+             "creationTimestamp": "2021-04-11T13:38:06Z",
+             "annotations":  {
+               "testKey": "testValue",
+               "kubecfg.ksonnet.io/last-applied-configuration": "H4sIANVcmWAAAzWOsQrDMBBD935F0Jwh3YJ/oWMhS+lwOBdqmtjGvgRC8L/3nLabJKSHDlB0A6fsgofBdkWLt/Oj6junzVnWYGGhkYRgDpD3QUi0nqsVznLjHaY55UDzyigtPC2sjCkEfE2OZGsy8kTrLNppkCPbCokhidIex3/2Eom6qzlM3/VdebbIPLOVkM4XMf7opZTLB1jX/izFAAAA"
+             }
+           },
+           "spec": {
+             "sessionAffinity": "None",
+             "type": "ClusterIP",
+             "selector": {
+               "app": "foo"
+             },
+             "ports": [
+               {
+                 "name": "http",
+                 "port": 8080,
+                 "protocol": "TCP",
+                 "targetPort": 8080
+               }
+             ]
+           },
+           "status": {
+             "loadBalancer": {}
+           }
+         }`
+	if err := json.Unmarshal([]byte(liveText), &liveMap); err != nil {
+		t.Error(err)
+	}
+
+	expectedText :=
+		`{
+           "apiVersion": "v1",
+           "kind": "Service",
+           "metadata": {
+             "name": "foo",
+             "namespace": "default",
+             "annotations":  {
+               "testKey": "testValue"
+             }
+           },
+           "spec": {
+             "selector": {
+               "app": "foo"
+             },
+             "ports": [
+               {
+                 "name": "http",
+                 "port": 8080
+               }
+             ]
+           }
+         }`
+	if err := json.Unmarshal([]byte(expectedText), &expectedMap); err != nil {
+		t.Error(err)
+	}
+	liveObj, err := c.getLiveObjObject(nil, &unstructured.Unstructured{Object: liveMap})
+	if err != nil {
+		t.Error(err)
+	}
+	require.Equal(t, expectedMap, liveObj)
 }
 
 func TestRemoveListFields(t *testing.T) {

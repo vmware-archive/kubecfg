@@ -2,12 +2,14 @@ package kubecfg
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	apiext_v1b1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -95,6 +97,34 @@ func isValidKindSchema(schema proto.Schema) bool {
 	return err == nil
 }
 
+func origObject(existing *unstructured.Unstructured) (map[string]interface{}, error) {
+	annos := existing.GetAnnotations()
+	var origData []byte
+	if data := annos[AnnotationOrigObject]; data != "" {
+		tmp := unstructured.Unstructured{}
+		err := utils.CompactDecodeObject(data, &tmp)
+		if err != nil {
+			return nil, err
+		}
+		origData, err = tmp.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+	} else if data, ok := annos[v1.LastAppliedConfigAnnotation]; ok {
+		origData = []byte(data)
+	} else {
+		return nil, fmt.Errorf("no original object annotation")
+	}
+
+	log.Debugf("origData: %s", origData)
+
+	var liveObjObject map[string]interface{}
+	if err := json.Unmarshal(origData, &liveObjObject); err != nil {
+		return nil, err
+	}
+	return liveObjObject, nil
+}
+
 func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unstructured.Unstructured, error) {
 	annos := existing.GetAnnotations()
 	var origData []byte
@@ -109,8 +139,6 @@ func patch(existing, new *unstructured.Unstructured, schema proto.Schema) (*unst
 			return nil, err
 		}
 	}
-
-	log.Debugf("origData: %s", origData)
 
 	new = new.DeepCopy()
 	utils.DeleteMetaDataAnnotation(new, AnnotationOrigObject)
