@@ -109,6 +109,7 @@ cache:
 branches:
   only:
     - master
+    - main
     # release tags
     - /^v\d+\.\d+\.\d+.*$/
 
