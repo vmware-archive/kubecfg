@@ -31,6 +31,10 @@ func TestExpandImportToCandidateURLs(t *testing.T) {
 		BaseSearchURLs: []*url.URL{
 			{Scheme: "file", Path: "/first/base/search/"},
 		},
+		extVarBaseURL: &url.URL{
+			Scheme: "file",
+			Path:   "/current/working/dir/",
+		},
 	}
 
 	t.Run("Absolute URL in import statement yields a single candidate", func(t *testing.T) {
@@ -48,6 +52,17 @@ func TestExpandImportToCandidateURLs(t *testing.T) {
 		expected := []*url.URL{
 			{Scheme: "file", Host: "", Path: "/abs/import/dir/relative/file.libsonnet"},
 			{Scheme: "file", Host: "", Path: "/first/base/search/relative/file.libsonnet"},
+		}
+		if !reflect.DeepEqual(urls, expected) {
+			t.Errorf("Expected %v, got %v", expected, urls)
+		}
+	})
+
+	t.Run("Relative URL in import statement used as external variable or TLA yields candidate relative to base URL", func(t *testing.T) {
+		urls, _ := importer.expandImportToCandidateURLs("", "../sought.jsonnet")
+		expected := []*url.URL{
+			{Scheme: "file", Host: "", Path: "/current/working/sought.jsonnet"},
+			{Scheme: "file", Host: "", Path: "/first/base/sought.jsonnet"},
 		}
 		if !reflect.DeepEqual(urls, expected) {
 			t.Errorf("Expected %v, got %v", expected, urls)

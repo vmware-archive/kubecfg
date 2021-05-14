@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,8 +17,6 @@ import (
 )
 
 var errNotFound = errors.New("Not found")
-
-var extVarKindRE = regexp.MustCompile("^<(?:extvar|top-level-arg):.+>$")
 
 //go:generate go-bindata -nometadata -ignore .*_test\.|~$DOLLAR -pkg $GOPACKAGE -o bindata.go -prefix ../ ../lib/...
 func newInternalFS(prefix string) http.FileSystem {
@@ -62,7 +59,7 @@ A real-world example:
     will be resolved as https://raw.githubusercontent.com/ksonnet/ksonnet-lib/master/ksonnet.beta.2/k8s.libsonnet
 	and downloaded from that location.
 */
-func MakeUniversalImporter(searchURLs []*url.URL) jsonnet.Importer {
+func MakeUniversalImporter(searchURLs []*url.URL, extVarBaseURL *url.URL) jsonnet.Importer {
 	// Reconstructed copy of http.DefaultTransport (to avoid
 	// modifying the default)
 	t := &http.Transport{
@@ -83,6 +80,7 @@ func MakeUniversalImporter(searchURLs []*url.URL) jsonnet.Importer {
 
 	return &universalImporter{
 		BaseSearchURLs: searchURLs,
+		extVarBaseURL:  extVarBaseURL,
 		HTTPClient:     &http.Client{Transport: t},
 		cache:          map[string]jsonnet.Contents{},
 	}
@@ -90,6 +88,7 @@ func MakeUniversalImporter(searchURLs []*url.URL) jsonnet.Importer {
 
 type universalImporter struct {
 	BaseSearchURLs []*url.URL
+	extVarBaseURL  *url.URL
 	HTTPClient     *http.Client
 	cache          map[string]jsonnet.Contents
 }
@@ -154,9 +153,17 @@ func (importer *universalImporter) expandImportToCandidateURLs(importedFrom, imp
 		return []*url.URL{importedPathURL}, nil
 	}
 
-	importDirURL, err := url.Parse(importedFrom)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid import dir %q: %v", importedFrom, err)
+	var importDirURL *url.URL
+	// Is the import coming from a source nominated by the "--ext-code-file," "--ext-str-file,"
+	// "--tla-code-file," or "--tla-str-file flags"? If so, resolve relative import paths against
+	// the specially configured base directory.
+	if importedFrom == "" {
+		importDirURL = importer.extVarBaseURL
+	} else {
+		importDirURL, err = url.Parse(importedFrom)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid import dir %q", importedFrom)
+		}
 	}
 
 	candidateURLs := make([]*url.URL, 1, len(importer.BaseSearchURLs)+1)
