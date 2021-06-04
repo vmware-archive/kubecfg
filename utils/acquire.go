@@ -16,20 +16,14 @@
 package utils
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/url"
-	"os"
 	"path/filepath"
 
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 // Read fetches and decodes K8s objects by path.
@@ -37,63 +31,18 @@ import (
 // content negotiation.
 func Read(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
 	ext := filepath.Ext(path)
-	if ext == ".json" {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		return jsonReader(f)
-	} else if ext == ".yaml" {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		return yamlReader(f)
-	} else if ext == ".jsonnet" {
-		return jsonnetReader(vm, path)
+	var expr string
+	switch ext {
+	case ".json":
+		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseJson(importstr @'%s')`, path)
+	case ".yaml":
+		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseYaml(importstr @'%s')`, path)
+	case ".jsonnet":
+		expr = fmt.Sprintf("import @'%s'", path)
+	default:
+		return nil, fmt.Errorf("Unknown file extension: %s", path)
 	}
-
-	return nil, fmt.Errorf("Unknown file extension: %s", path)
-}
-
-func jsonReader(r io.Reader) ([]runtime.Object, error) {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	obj, _, err := unstructured.UnstructuredJSONScheme.Decode(data, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return []runtime.Object{obj}, nil
-}
-
-func yamlReader(r io.ReadCloser) ([]runtime.Object, error) {
-	decoder := yaml.NewYAMLReader(bufio.NewReader(r))
-	ret := []runtime.Object{}
-	for {
-		bytes, err := decoder.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-		if len(bytes) == 0 {
-			continue
-		}
-		jsondata, err := yaml.ToJSON(bytes)
-		if err != nil {
-			return nil, err
-		}
-		obj, _, err := unstructured.UnstructuredJSONScheme.Decode(jsondata, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, obj)
-	}
-	return ret, nil
+	return jsonnetReader(vm, expr)
 }
 
 type walkContext struct {
@@ -149,39 +98,8 @@ func jsonWalk(parentCtx *walkContext, obj interface{}) ([]interface{}, error) {
 	}
 }
 
-func pathToURL(path string) (*url.URL, error) {
-	// Try to parse the path as is
-	u, err := url.Parse(path)
-	if err != nil {
-		return nil, err
-	}
-	// If no scheme was parsed, assume local file
-	if u.Scheme == "" {
-		u.Scheme = "file"
-	}
-	// If it is a local file, enforce absolute path
-	if u.Scheme == "file" {
-		abs, err := filepath.Abs(u.Path)
-		if err != nil {
-			return nil, err
-		}
-		u.Path = filepath.ToSlash(abs)
-	}
-	return u, nil
-}
-
-func jsonnetReader(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
-	pathUrl, err := pathToURL(path)
-	if err != nil {
-		return nil, err
-	}
-
-	contents, _, err := vm.ImportData("", pathUrl.String())
-	if err != nil {
-		return nil, err
-	}
-
-	jsonstr, err := vm.EvaluateSnippet(pathUrl.String(), contents)
+func jsonnetReader(vm *jsonnet.VM, expr string) ([]runtime.Object, error) {
+	jsonstr, err := vm.EvaluateSnippet("", expr)
 	if err != nil {
 		return nil, err
 	}

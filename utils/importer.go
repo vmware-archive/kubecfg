@@ -154,6 +154,14 @@ func (importer *universalImporter) expandImportToCandidateURLs(importedFrom, imp
 		return []*url.URL{importedPathURL}, nil
 	}
 
+	if importedFrom == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("Could not determine current directory: %v", err)
+		}
+		importedFrom = "file://" + cwd + "/."
+	}
+
 	importDirURL, err := url.Parse(importedFrom)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid import dir %q: %v", importedFrom, err)

@@ -17,9 +17,6 @@ package utils
 
 import (
 	"encoding/json"
-	"net/url"
-	"os"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -105,66 +102,6 @@ func TestJsonWalk(t *testing.T) {
 		})
 		if !reflect.DeepEqual(objs, test.result) {
 			t.Errorf("Expected %v, got %v", test.result, objs)
-		}
-	}
-}
-
-func TestPathToURL(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tests := []struct {
-		input  string
-		result url.URL
-		error  bool
-	}{
-		// generic relative path
-		{
-			input:  "./test.jsonnet",
-			result: url.URL{Scheme: "file", Path: filepath.Join(cwd, "test.jsonnet")},
-		},
-		// generic absolute path
-		{
-			input:  "/tmp/test.jsonnet",
-			result: url.URL{Scheme: "file", Path: "/tmp/test.jsonnet"},
-		},
-		// generic file:// path
-		{
-			input:  "file:///tmp/test.jsonnet",
-			result: url.URL{Scheme: "file", Path: "/tmp/test.jsonnet"},
-		},
-		// Some URL
-		{
-			input:  "https://raw.githubusercontent.com/example/repository/main/deploy.jsonnet",
-			result: url.URL{Scheme: "https", Host: "raw.githubusercontent.com", Path: "/example/repository/main/deploy.jsonnet"},
-		},
-		// Leading white space should be an example of breaking url.Parse
-		{
-			input: "  https://test.example.com",
-			error: true,
-		},
-	}
-
-	for i, test := range tests {
-		out, err := pathToURL(test.input)
-		if test.error {
-			// expect error
-			if err == nil {
-				t.Errorf("Test %d failed to fail", i)
-			}
-			continue
-		}
-
-		// expect success
-		if err != nil {
-			t.Errorf("Test %d failed: %v", i, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(*out, test.result) {
-			t.Errorf("Expected %+v, got %+v", test.result, *out)
 		}
 	}
 }

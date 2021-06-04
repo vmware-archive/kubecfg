@@ -285,10 +285,16 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 				// won't try to glean from an extVar or TLA reference the context necessary to
 				// resolve a relative path.
 				path := kv[1]
-				if !filepath.IsAbs(path) {
-					path = filepath.Join(cwd, path)
+				u, err := url.Parse(path)
+				if err != nil {
+					return nil, err
 				}
-				u := &url.URL{Scheme: "file", Path: path}
+				if u.Scheme == "" {
+					if !filepath.IsAbs(u.Path) {
+						u.Path = filepath.Join(cwd, u.Path)
+					}
+					u.Scheme = "file"
+				}
 				var imp string
 				if spec.isCode {
 					imp = "import"
