@@ -60,6 +60,7 @@ const (
 	flagTLACodeFile = "tla-code-file"
 	flagResolver    = "resolve-images"
 	flagResolvFail  = "resolve-images-error"
+	flagCacheDir    = "cache-dir"
 )
 
 var clientConfig clientcmd.ClientConfig
@@ -84,6 +85,7 @@ func init() {
 	RootCmd.MarkPersistentFlagFilename(flagTLACodeFile)
 	RootCmd.PersistentFlags().String(flagResolver, "noop", "Change implementation of resolveImage native function. One of: noop, registry")
 	RootCmd.PersistentFlags().String(flagResolvFail, "warn", "Action when resolveImage fails. One of ignore,warn,error")
+	RootCmd.PersistentFlags().String(flagCacheDir, "", "Directory to cache remote files. Defaults to the current user's cache directory.")
 
 	// The "usual" clientcmd/kubectl flags
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -252,7 +254,20 @@ func JsonnetVM(cmd *cobra.Command) (*jsonnet.VM, error) {
 		return nil, fmt.Errorf("Unable to determine current working directory: %v", err)
 	}
 
-	vm.Importer(utils.MakeUniversalImporter(searchUrls))
+	// Determine the caching directory
+	cacheDir, err := flags.GetString(flagCacheDir)
+	if err != nil {
+		return nil, err
+	}
+	if cacheDir == "" {
+		userCache, err := os.UserCacheDir()
+		if err != nil {
+			return nil, err
+		}
+		cacheDir = filepath.Join(userCache, "kubecfg")
+	}
+
+	vm.Importer(utils.MakeUniversalImporter(searchUrls, cacheDir))
 
 	for _, spec := range []struct {
 		flagName string
