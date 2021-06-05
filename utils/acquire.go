@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -31,15 +32,18 @@ import (
 // content negotiation.
 func Read(vm *jsonnet.VM, path string) ([]runtime.Object, error) {
 	ext := filepath.Ext(path)
+	// Double any single quotes in the path so they are quoted in the produced expression
+	quotedPath := strings.Replace(path, "'", "''", -1)
 	var expr string
 	switch ext {
 	case ".json":
-		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseJson(importstr @'%s')`, path)
+		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseJson(importstr @'%s')`, quotedPath)
 	case ".yaml":
-		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseYaml(importstr @'%s')`, path)
+		expr = fmt.Sprintf(`(import "internal:///kubecfg.libsonnet").parseYaml(importstr @'%s')`, quotedPath)
 	case ".jsonnet":
-		expr = fmt.Sprintf("import @'%s'", path)
+		expr = fmt.Sprintf("import @'%s'", quotedPath)
 	default:
+		// Keep unquoted path in return error to not confuse anyone
 		return nil, fmt.Errorf("Unknown file extension: %s", path)
 	}
 	return jsonnetReader(vm, expr)
