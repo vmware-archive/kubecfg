@@ -2,12 +2,9 @@ package utils
 
 import (
 	"fmt"
-	"net"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -34,23 +31,6 @@ A real-world example:
 	and downloaded from that location.
 */
 func MakeUniversalImporter(searchURLs []*url.URL, cacheDir string) jsonnet.Importer {
-
-	t := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-	t.RegisterProtocol("internal", http.NewFileTransport(newInternalFS("lib")))
-
 	return &universalImporter{
 		BaseSearchURLs: searchURLs,
 		HTTPCache:      NewHTTPCache(cacheDir),
