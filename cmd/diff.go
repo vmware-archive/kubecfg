@@ -22,13 +22,15 @@ import (
 )
 
 const (
-	flagDiffStrategy = "diff-strategy"
-	flagOmitSecrets  = "omit-secrets"
+	flagDiffStrategy      = "diff-strategy"
+	flagOmitSecrets       = "omit-secrets"
+	flagIgnoreStatusField = "ignore-status-field"
 )
 
 func init() {
 	diffCmd.PersistentFlags().String(flagDiffStrategy, "all", "Diff strategy, all, subset or last-applied")
 	diffCmd.PersistentFlags().Bool(flagOmitSecrets, false, "hide secret details when showing diff")
+	diffCmd.PersistentFlags().Bool(flagIgnoreStatusField, false, "ignore the top-level .status field when comparing diffs")
 	RootCmd.AddCommand(diffCmd)
 }
 
@@ -48,6 +50,11 @@ var diffCmd = &cobra.Command{
 		}
 
 		c.OmitSecrets, err = flags.GetBool(flagOmitSecrets)
+		if err != nil {
+			return err
+		}
+
+		c.IgnoreStatusField, err = flags.GetBool(flagIgnoreStatusField)
 		if err != nil {
 			return err
 		}

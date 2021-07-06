@@ -46,10 +46,11 @@ var DiffKeyValue = regexp.MustCompile(`"([-._a-zA-Z0-9]+)":\s"([[:alnum:]=+]+)",
 
 // DiffCmd represents the diff subcommand
 type DiffCmd struct {
-	Client           dynamic.Interface
-	Mapper           meta.RESTMapper
-	DefaultNamespace string
-	OmitSecrets      bool
+	Client            dynamic.Interface
+	Mapper            meta.RESTMapper
+	DefaultNamespace  string
+	OmitSecrets       bool
+	IgnoreStatusField bool
 
 	DiffStrategy string
 }
@@ -92,6 +93,18 @@ func (c DiffCmd) Run(ctx context.Context, apiObjects []*unstructured.Unstructure
 		if err != nil {
 			return err
 		}
+
+		if c.IgnoreStatusField {
+			_, foundLive := liveObjMap["status"]
+			if foundLive {
+				delete(liveObjMap, "status")
+			}
+			_, foundObj := obj.Object["status"]
+			if foundObj {
+				delete(obj.Object, "status")
+			}
+		}
+
 		liveObjText, _ := json.MarshalIndent(liveObjMap, "", "  ")
 		objText, _ := json.MarshalIndent(obj.Object, "", "  ")
 
