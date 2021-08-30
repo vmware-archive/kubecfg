@@ -75,6 +75,8 @@ github.com/genuinetools/reg/registry
 github.com/genuinetools/reg/repoutils
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
+# github.com/go-bindata/go-bindata v1.0.0
+github.com/go-bindata/go-bindata
 # github.com/go-logr/logr v0.2.0
 github.com/go-logr/logr
 # github.com/go-openapi/jsonpointer v0.19.3
