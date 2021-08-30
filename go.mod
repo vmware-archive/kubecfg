@@ -6,6 +6,7 @@ require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/genuinetools/reg v0.16.1
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-bindata/go-bindata v1.0.0
 	github.com/go-openapi/spec v0.19.7 // indirect
 	github.com/go-openapi/swag v0.19.8 // indirect
 	github.com/golang/protobuf v1.4.3

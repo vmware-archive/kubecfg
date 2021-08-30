@@ -21,7 +21,7 @@ var errNotFound = errors.New("Not found")
 
 var extVarKindRE = regexp.MustCompile("^<(?:extvar|top-level-arg):.+>$")
 
-//go:generate go-bindata -nometadata -ignore .*_test\.|~$DOLLAR -pkg $GOPACKAGE -o bindata.go -prefix ../ ../lib/...
+//go:generate go run github.com/go-bindata/go-bindata/go-bindata -nometadata -ignore .*_test\.|~$DOLLAR -pkg $GOPACKAGE -o bindata.go -prefix ../ ../lib/...
 func newInternalFS(prefix string) http.FileSystem {
 	// Asset/AssetDir returns `fmt.Errorf("Asset %s not found")`,
 	// which does _not_ get mapped to 404 by `http.FileSystem`.
