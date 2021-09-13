@@ -1,6 +1,6 @@
 # kubecfg
 
-[![Build Status](https://travis-ci.org/bitnami/kubecfg.svg?branch=master)](https://travis-ci.org/bitnami/kubecfg)
+[![Build Status](https://app.travis-ci.com/bitnami/kubecfg.svg?branch=main)](https://app.travis-ci.com/github/bitnami/kubecfg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bitnami/kubecfg)](https://goreportcard.com/report/github.com/bitnami/kubecfg)
 
 A tool for managing Kubernetes resources as code.
