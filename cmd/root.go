@@ -386,6 +386,9 @@ func readObjs(cmd *cobra.Command, paths []string) ([]*unstructured.Unstructured,
 		}
 		res = append(res, utils.FlattenToV1(objs)...)
 	}
+	if err := utils.CheckDuplicates(res); err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 
