@@ -22,12 +22,17 @@ import (
 )
 
 const (
-	flagFormat = "format"
+	flagFormat               = "format"
+	flagExportDir            = "export-dir"
+	flagExportFileNameFormat = "export-filename-format"
 )
 
 func init() {
 	RootCmd.AddCommand(showCmd)
 	showCmd.PersistentFlags().StringP(flagFormat, "o", "yaml", "Output format.  Supported values are: json, yaml")
+	showCmd.PersistentFlags().String(flagExportDir, "", "Split yaml stream into multiple files and write files into a directory. If the directory exists it must be empty.")
+	showCmd.PersistentFlags().String(flagExportFileNameFormat, kubecfg.DefaultFileNameFormat, "Go template expression used to render path names for resources.")
+
 }
 
 var showCmd = &cobra.Command{
@@ -36,11 +41,21 @@ var showCmd = &cobra.Command{
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flags := cmd.Flags()
-		var err error
 
-		c := kubecfg.ShowCmd{}
+		outputFormat, err := flags.GetString(flagFormat)
+		if err != nil {
+			return err
+		}
+		exportDir, err := flags.GetString(flagExportDir)
+		if err != nil {
+			return err
+		}
+		exportFileNameFormat, err := flags.GetString(flagExportFileNameFormat)
+		if err != nil {
+			return err
+		}
 
-		c.Format, err = flags.GetString(flagFormat)
+		c, err := kubecfg.NewShowCmd(outputFormat, exportDir, exportFileNameFormat)
 		if err != nil {
 			return err
 		}

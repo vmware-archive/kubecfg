@@ -2,6 +2,9 @@ module github.com/bitnami/kubecfg
 
 require (
 	github.com/Azure/go-autorest/autorest v0.10.0 // indirect
+	github.com/Masterminds/goutils v1.1.1 // indirect
+	github.com/Masterminds/semver v1.5.0 // indirect
+	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20180223160309-38087fe4dafb
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/genuinetools/reg v0.16.1
@@ -12,9 +15,11 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-jsonnet v0.17.0
 	github.com/googleapis/gnostic v0.5.3
+	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
 	github.com/mattn/go-isatty v0.0.11
+	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.0
 	github.com/sergi/go-diff v1.1.0
