@@ -3,6 +3,13 @@
 [![Build Status](https://app.travis-ci.com/bitnami/kubecfg.svg?branch=main)](https://app.travis-ci.com/github/bitnami/kubecfg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bitnami/kubecfg)](https://goreportcard.com/report/github.com/bitnami/kubecfg)
 
+## WARNING: kubecfg is no longer actively maintained by VMware.
+VMware has made the difficult decision to stop driving this project and therefore we will no longer actively respond to issues or pull requests. The project will be externally maintained in the following fork: https://github.com/kubecfg/kubecfg
+
+Thank You.
+
+## Overview
+
 A tool for managing Kubernetes resources as code.
 
 `kubecfg` allows you to express the patterns across your
