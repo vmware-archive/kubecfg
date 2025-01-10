@@ -13,13 +13,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-VERSION ?= dev-$(shell date +%FT%T%z)
+VERSION ?= eip-$(shell date +%FT%T%z)
+
+GOOS?=darwin
+GOARCH?=arm64
 
 GO ?= go
 GO_FLAGS ?= -mod=vendor
 GO_LDFLAGS ?=
 GO_TESTFLAGS ?= -race
-GO_BUILDFLAGS ?= -tags netgo -installsuffix netgo -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)"
+GO_BUILDFLAGS ?= -tags netgo -installsuffix netgo -ldflags="-X main.version=$(VERSION) $(GO_LDFLAGS)" -o kubecfg.${GOOS}.${GOARCH}
 GOFMT ?= gofmt
 # GINKGO = "go test" also works if you want to avoid ginkgo tool
 GINKGO ?= ginkgo
@@ -37,7 +40,7 @@ KUBECONFIG ?= $(HOME)/.kube/config
 all: kubecfg
 
 kubecfg:
-	CGO_ENABLED=0 $(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
+	export GOARCH=$(GOARCH); GOOS=$(GOOS) CGO_ENABLED=0 $(GO) build $(GO_FLAGS) $(GO_BUILDFLAGS) .
 
 generate:
 	$(GO) generate -x $(GO_FLAGS) $(GO_PACKAGES)

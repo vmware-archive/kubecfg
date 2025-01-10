@@ -17,10 +17,17 @@ package utils
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"regexp"
+	"os/exec"
 	"strings"
+
+	"github.com/DaKnOb/ntlm"
+	"github.com/mattn/go-shellwords"
+	"github.com/sethvargo/go-password/password"
 
 	goyaml "github.com/ghodss/yaml"
 
@@ -40,6 +47,51 @@ func resolveImage(resolver Resolver, image string) (string, error) {
 	}
 
 	return n.String(), nil
+}
+
+func generatePassword(length int, numDigits int, numSymbols int, noUpper bool, allowRepeat bool, customSymbols string) (string, error) {
+	// exclude some of the default symbols as they cause problems when using them
+	// as arguments on the command line (as part of JSON being passed)
+	input := &password.GeneratorInput {
+		LowerLetters: "",
+		UpperLetters: "",
+		Digits:       "",
+		Symbols:      customSymbols,
+	}
+	g, err := password.NewGenerator(input)
+
+	if err != nil {
+		return "", err
+	}
+	return g.Generate(length, numDigits, numSymbols, noUpper, allowRepeat)
+}
+
+func execProgram(name string, argumentsString string, failOnError bool) (string, error) {
+	arg, err := shellwords.Parse(argumentsString)
+	if err != nil {
+		if failOnError {
+			return "", err
+		}
+		return "", nil
+	}
+
+	out, err := exec.Command(name, arg...).CombinedOutput()
+	if err != nil {
+		if failOnError {
+			return "", errors.New(string(out))
+		}
+		return "", nil
+	}
+
+	return string(out), nil
+}
+
+func ntHashFromPassword(password string) (string)  {
+	return string(ntlm.FromASCIIStringToHex(password))
+}
+
+func encodeBase64Url(text string) (string) {
+	return base64.URLEncoding.EncodeToString([]byte(text))
 }
 
 // RegisterNativeFuncs adds kubecfg's native jsonnet functions to provided VM
@@ -140,4 +192,37 @@ func RegisterNativeFuncs(vm *jsonnet.VM, resolver Resolver) {
 			return r.ReplaceAllString(src, repl), nil
 		},
 	})
+
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "generatePassword",
+		Params: []jsonnetAst.Identifier{"length", "numDigits", "numSymbols", "noUpper", "allowRepeat", "customSymbols"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return generatePassword(int(args[0].(float64)), int(args[1].(float64)), int(args[2].(float64)), args[3].(bool), args[4].(bool), args[5].(string) )
+		},
+	})
+
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "execProgram",
+		Params: []jsonnetAst.Identifier{"name", "arguments", "failOnError"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return execProgram(args[0].(string), args[1].(string), args[2].(bool))
+		},
+	})
+	
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "ntHashFromPassword",
+		Params: []jsonnetAst.Identifier{"password"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return ntHashFromPassword(args[0].(string)), nil
+		},
+	})
+
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "encodeBase64Url",
+		Params: []jsonnetAst.Identifier{"text"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			return encodeBase64Url(args[0].(string)), nil
+		},
+	})
+
 }

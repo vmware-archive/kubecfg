@@ -56,4 +56,19 @@
   // to refer to submatches.  Regex is as implemented in golang regexp
   // package (python-ish).
   regexSubst:: std.native("regexSubst"),
+
+  // generatePassword(length, numDigits, numSymbols, noUpper, allowRepeat,customSymbols):
+  // Return a generated password with the features specified by the parameters.
+  generatePassword:: std.native("generatePassword"),
+
+  // execProgram(name, arguments, failOnError): Executes a program and returns
+  // the result / string that was written to stdout. Program must 
+  // be in PATH.
+  execProgram:: std.native("execProgram"),
+
+  // ntHashFromPassword(password): Return the NT(LM) hash for a password.
+  ntHashFromPassword:: std.native("ntHashFromPassword"),
+
+  // encodeBase64Url(text): Return base64-url-encoded string for text.
+  encodeBase64Url:: std.native("encodeBase64Url"),
 }

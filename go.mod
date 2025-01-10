@@ -33,6 +33,9 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200923155610-8b5066479488
 	k8s.io/kubectl v0.19.3
+	github.com/sethvargo/go-password v0.1.2
+	github.com/mattn/go-shellwords v1.0.6
+	github.com/DaKnOb/ntlm v0.0.0-20180331151128-c6369eea43f9
 )
 
 go 1.13
